@@ -2,7 +2,8 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
-RUN npm ci
+# Conserver les archives entre builds ; npm ci vérifie toujours le lock et les intégrités.
+RUN --mount=type=cache,id=fullstack-npm,target=/root/.npm npm ci --prefer-offline --no-audit --no-fund
 COPY . .
 # Seule l’identité publique entre dans le build ; aucun secret backend.
 ARG NEXT_PUBLIC_APP_NAME=Fullstack
