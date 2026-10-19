@@ -25,10 +25,12 @@ export function useSession() {
 export function useAuthenticate(mode: "login" | "register") {
   const client = useQueryClient();
   return useMutation({
+    gcTime: 0,
     mutationFn: (input: {
       username: string;
       password: string;
       telephone?: string;
+      email?: string;
     }) =>
       mode === "login"
         ? authApi.login(input)
@@ -73,6 +75,27 @@ export function useUploadPhoto() {
     mutationFn: authApi.uploadPhoto,
     onSuccess: (user) => {
       client.setQueryData(sessionKey, user);
+      notifySessionChange();
+    },
+  });
+}
+
+/** Les mots de passe/jetons restent en mémoire pendant l’envoi ; aucune persistance de mutation. */
+export function useCredentialChange<T>(
+  mutationFn: (input: T) => Promise<null>,
+  beforeSessionClear?: () => void,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn,
+    gcTime: 0,
+    onSuccess: async () => {
+      await client.cancelQueries();
+      client.removeQueries({
+        predicate: (query) => query.queryKey[0] !== "session",
+      });
+      beforeSessionClear?.();
+      client.setQueryData(sessionKey, null);
       notifySessionChange();
     },
   });

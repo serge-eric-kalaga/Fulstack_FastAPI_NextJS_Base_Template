@@ -68,6 +68,19 @@ class User(Base, BaseTemplate):
         DateTime(), nullable=True, init=False, default=None
     )
 
+    email: Mapped[str | None] = mapped_column(
+        VARCHAR(254), nullable=True, unique=True, index=True, init=False, default=None
+    )
+    auth_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, init=False, default=0, server_default="0"
+    )
+    password_reset_digest: Mapped[str | None] = mapped_column(
+        VARCHAR(64), nullable=True, index=True, init=False, default=None
+    )
+    password_reset_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(), nullable=True, init=False, default=None
+    )
+
     @property
     def profile_photo_url(self) -> str | None:
         """Retourner l’URL authentifiée de la photo, versionnée après remplacement."""
@@ -86,3 +99,14 @@ class User(Base, BaseTemplate):
         if len(password) < 8:
             raise ValueError("Le password doit etre superieur a 8 caracteres !")
         return password
+
+
+class RecoveryRateLimit(Base):
+    """Compteurs partagés entre processus, sans adresse e-mail ni IP en clair."""
+
+    __tablename__ = "recovery_rate_limit"
+    key: Mapped[str] = mapped_column(VARCHAR(64), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False, index=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)

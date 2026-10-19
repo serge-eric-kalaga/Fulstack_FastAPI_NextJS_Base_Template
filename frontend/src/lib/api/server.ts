@@ -153,6 +153,7 @@ export function browserUser(user: CurrentUser): CurrentUser {
     : null;
   return {
     username: user.username,
+    email: user.email,
     telephone: user.telephone,
     last_login_at: user.last_login_at,
     profile_photo_url: user.profile_photo_url

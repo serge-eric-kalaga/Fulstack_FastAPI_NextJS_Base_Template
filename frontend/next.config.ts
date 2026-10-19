@@ -7,7 +7,14 @@ const envFile = resolve(process.cwd(), "../.env.dev");
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async headers() {
+    return [
+      {
+        source: "/reinitialiser-mot-de-passe",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

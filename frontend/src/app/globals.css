@@ -1556,3 +1556,26 @@ svg {
     flex-wrap: wrap;
   }
 }
+
+/* Parcours des identifiants : mêmes composants, palette et états accessibles. */
+.forgot-link {
+  justify-self: end;
+  color: var(--green);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.notice-success {
+  color: var(--green);
+  background: var(--soft);
+  border: 1px solid var(--line);
+}
+.recovery-notice,
+.auth-card > .notice {
+  margin-top: 20px;
+}
+.panel .form-stack > .button {
+  align-self: flex-start;
+  justify-self: start;
+  white-space: normal;
+}

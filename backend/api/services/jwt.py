@@ -4,6 +4,8 @@ from jose import jwt, JWTError
 from werkzeug.exceptions import Unauthorized, Forbidden
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends
+from typing import Annotated
+from api.database import get_db, User, Session
 from api.configs.logging import logResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/doc-login")
@@ -33,15 +35,23 @@ def decode_token(token: str):
         return None
 
 
-def getPayload(token: str = Depends(oauth2_scheme)):
-    """Extraire les données du jeton Bearer ; refuser un jeton invalide avec HTTP 403."""
+def getPayload(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Vérifier le JWT et la version des identifiants pour révoquer les anciennes sessions."""
     payload = decode_token(token)
-    if payload is None:
+    if not payload or not isinstance(payload.get("username"), str):
         raise Forbidden("Token Invalide")
+    user = User.getOrNone(db=db, username=payload["username"])
+    if user is None or payload.get("auth_version", 0) != user.auth_version:
+        raise Forbidden("Session expirée")
+    if "sub" in payload and payload["sub"] != str(user.id):
+        raise Forbidden("Session expirée")
     return payload
 
 
-def isAdmin(token: dict = Depends(getPayload)):
+def isAdmin(token: Annotated[dict, Depends(getPayload)]):
     """Autoriser uniquement le rôle admin ; lever HTTP 401 pour un rôle insuffisant."""
     if token["role"] == "admin":
         return token

@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash
 from api.database.models import User
 from sqlalchemy.orm import Session
 from fastapi.exceptions import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 
 def create_user(user: CreateUserModel, db: Session) -> User:
@@ -15,7 +16,14 @@ def create_user(user: CreateUserModel, db: Session) -> User:
         password=generate_password_hash(user.password),
         telephone=user.telephone,
     )
-    new_user.saveWithCommit(db=db)
+    new_user.email = str(user.email).lower() if user.email else None
+    try:
+        new_user.saveWithCommit(db=db)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, detail="Identifiant ou adresse e-mail indisponible"
+        ) from None
     return new_user
 
 

@@ -234,10 +234,14 @@ Ces routes nécessitent un jeton Bearer valide.
 |---|---|---|
 | `GET` | `/api/user/me` | Compte connecté et dernière connexion UTC |
 | `PATCH` | `/api/user/me` | Modifier son téléphone (`null` pour le supprimer) |
+| `PATCH` | `/api/user/me/email` | Définir son adresse de récupération avec le mot de passe actuel |
+| `PUT` | `/api/user/me/password` | Modifier son mot de passe et révoquer les sessions |
 | `GET` | `/api/user/` | Lister les utilisateurs |
 | `GET` | `/api/user/{username}` | Consulter un utilisateur |
-| `PUT` | `/api/user/{username}` | Mettre à jour un utilisateur |
-| `DELETE` | `/api/user/{username}` | Supprimer un utilisateur |
+| `PUT` | `/api/user/{username}` | Mettre à jour son propre compte, hors identifiants sensibles |
+| `DELETE` | `/api/user/{username}` | Supprimer son propre compte |
+
+L’adresse e-mail est privée : elle est présente uniquement dans `/api/user/me`, jamais dans les listes ou profils publics. Le changement de mot de passe passe exclusivement par sa route dédiée ; le champ `password` est refusé sur la mise à jour générique.
 
 Les descriptions et exemples des attributs sont définis dans [schemas/user.py](backend/api/schemas/user.py) et visibles dans Swagger. Pour une mise à jour, les attributs omis ou à `null` sont ignorés par le service actuel.
 
@@ -429,7 +433,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **37 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **49 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
@@ -450,6 +454,7 @@ npm run build
 npm run test:i18n
 # Frontend et backend démarrés :
 npm run test:api
+npm run test:passwords
 npm audit
 ```
 
@@ -466,3 +471,32 @@ Le [guide frontend](frontend/README.md#ajouter-une-fonctionnalité-avec-les-serv
 La navbar permet de choisir le **français ou l’anglais**, ainsi que le thème **clair, sombre ou système**. Les préférences sont mémorisées dans le navigateur et synchronisées entre onglets. i18next traduit les écrans, les libellés, les validations et les dates ; next-themes applique le thème avant hydratation. Ces préférences ne passent pas par l’API. Les routes restent identiques dans les deux langues et les métadonnées initiales restent françaises.
 
 Pour étendre les traductions, compléter les catalogues de `frontend/src/lib/i18n/locales/`. Pour un nouveau composant, utiliser les variables CSS de la palette dans `globals.css` et vérifier les deux thèmes. Voir les sections [internationalisation](frontend/README.md#internationalisation-français--anglais) et [thèmes](frontend/README.md#thèmes-clair-sombre-et-système) pour les conventions et exemples. Les fichiers d’environnement restent exclusivement à la racine.
+
+## Mots de passe et récupération par e-mail
+
+L’inscription accepte une adresse e-mail facultative. Pour un compte existant, l’ajouter depuis `/profil` en confirmant le mot de passe actuel. Une adresse unique est normalisée en minuscules ; elle reste privée. Son association n’est pas présentée comme une vérification de boîte mail : l’accès à la boîte est prouvé lors de l’utilisation du lien de récupération.
+
+Le profil propose un formulaire avec mot de passe actuel, nouveau mot de passe et confirmation. Après succès, toutes les sessions et tous les liens en attente sont révoqués, puis le frontend redirige vers la connexion. La mise à jour de l’adresse de récupération exige aussi le mot de passe actuel et une reconnexion. Les routes historiques de modification/suppression d’utilisateur sont limitées au compte connecté et ne permettent plus de modifier un mot de passe.
+
+Depuis `/connexion`, le lien **Mot de passe oublié ?** ouvre `/mot-de-passe-oublie`. Le backend répond toujours de la même manière pour une adresse existante, inconnue ou limitée. Une tâche après réponse envoie le message dans la langue de l’interface, avec un lien vers `/reinitialiser-mot-de-passe`. Le jeton aléatoire de 256 bits est transmis dans le fragment du lien, retiré de l’URL après lecture et conservé uniquement en mémoire côté navigateur. Seul son SHA-256 est stocké en base. L’UPDATE conditionnel garantit l’usage unique, même si deux requêtes arrivent simultanément. Aucun mot de passe n’est envoyé par e-mail et aucun jeton n’est retourné par l’API publique. Après réinitialisation, la connexion reste manuelle et un message de notification est envoyé à l’adresse associée.
+
+Avant mise en service sur une base existante, appliquer la migration `0002_password_recovery` avec `alembic upgrade head` (voir les commandes ci-dessus). Elle ajoute l’adresse privée, la version d’authentification, le hash/expiration de récupération et les compteurs de limitation sans modifier les comptes ni leurs hashes de mot de passe. Les JWT précédents sans version restent acceptés à la version zéro ; la première modification des identifiants les révoque. Les nouveaux JWT sont aussi liés à l’identifiant interne du compte.
+
+Configurer uniquement les fichiers env à la racine :
+
+| Variable | Valeur de développement / rôle |
+|---|---|
+| `FRONTEND_URL` | `http://localhost:3000`, origine publique de confiance utilisée pour construire les liens ; URL HTTPS en production |
+| `PASSWORD_RESET_EXPIRE_MINUTES` | `30`, validité d’un lien (1 à 120 minutes) |
+| `PASSWORD_RESET_WINDOW_SECONDS` | `900`, fenêtre de 60 à 86 400 secondes des compteurs SQL partagés entre workers |
+| `PASSWORD_RESET_EMAIL_LIMIT` | `3`, demandes par adresse et par fenêtre |
+| `PASSWORD_RESET_IP_LIMIT` | `30`, demandes par IP vue par FastAPI et par fenêtre |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_DOMAIN`, `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Paramètres SMTP existants, avec STARTTLS et authentification ; délai de connexion borné à 10 s |
+
+Derrière le proxy Next.js, FastAPI voit l’IP du serveur Next.js : ce quota IP est donc partagé par ses visiteurs. Aucun `X-Forwarded-For` fourni par le client n’est accepté comme preuve d’adresse. Adapter le quota au trafic prévu et configurer la transmission d’IP uniquement à travers un proxy de confiance si nécessaire. Les changements de mot de passe/adresse sont limités à dix tentatives par compte et par fenêtre ; la confirmation d’un lien est limitée à trente tentatives par IP et par fenêtre.
+
+En cas d’échec SMTP, la réponse publique reste générique et le nouveau jeton est invalidé. Les logs de validation ne contiennent ni entrée brute ni traceback Pydantic susceptible d’exposer un mot de passe ou un jeton. Le backend vérifie la version d’authentification avant les réponses en cache. Les compteurs ne stockent ni IP ni e-mail en clair et sont nettoyés après deux jours.
+
+Routes publiques ajoutées : `POST /api/auth/forgot-password` et `POST /api/auth/reset-password`. Les contrats détaillés sont visibles dans Swagger. Les modèles d’e-mail sont dans `backend/api/html/email/password_reset.html`, `password_changed.html` et `recovery_email_changed.html`. Une modification de l’adresse de récupération notifie son ancienne adresse, si elle existe.
+
+Validation : 49 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.

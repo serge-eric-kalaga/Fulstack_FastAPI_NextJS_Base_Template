@@ -17,7 +17,13 @@ def login(db, credentials: LoginModel) -> str:
     # Horodatage UTC enregistré uniquement après validation des identifiants.
     user_exist.last_login_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
-    token = create_token(data={"username": credentials.username})
+    token = create_token(
+        data={
+            "username": credentials.username,
+            "sub": str(user_exist.id),
+            "auth_version": user_exist.auth_version,
+        }
+    )
     return token
 
 

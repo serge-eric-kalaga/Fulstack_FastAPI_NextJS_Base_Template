@@ -117,9 +117,10 @@ def createApp(config: SETTINGS) -> FastAPI:
         """
         Gestionnaire d'exception pour les erreurs de validation des requêtes FastAPI
         """
-        logError(exc)
+        # Les erreurs Pydantic contiennent aussi l’entrée brute (mots de passe, jetons).
+        logInfo("Validation de requête refusée")
         return JSONResponse(
-            content={"status": -1, "status_code": 400, "message": f"{exc}"},
+            content={"status": -1, "status_code": 400, "message": "Vérifiez les informations saisies."},
             status_code=400,
         )
 

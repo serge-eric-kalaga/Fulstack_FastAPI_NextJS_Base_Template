@@ -22,9 +22,13 @@ def send_email(receiver_email: str | list[str], message_text: str, object: str) 
     refusé ou si l’envoi SMTP échoue. Aucun envoi n’est effectué sans destinataire.
     """
     addresses = [receiver_email] if isinstance(receiver_email, str) else receiver_email
-    if not isinstance(addresses, list) or not all(isinstance(item, str) for item in addresses):
+    if not isinstance(addresses, list) or not all(
+        isinstance(item, str) for item in addresses
+    ):
         return False
-    recipients = list(dict.fromkeys(address.strip() for address in addresses if address.strip()))
+    recipients = list(
+        dict.fromkeys(address.strip() for address in addresses if address.strip())
+    )
     if not recipients:
         return False
 
@@ -36,12 +40,14 @@ def send_email(receiver_email: str | list[str], message_text: str, object: str) 
     message.attach(MIMEText(str(message_text), "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(Setting.EMAIL_HOST, Setting.EMAIL_PORT) as server:
+        with smtplib.SMTP(Setting.EMAIL_HOST, Setting.EMAIL_PORT, timeout=10) as server:
             server.starttls()
             server.login(user=Setting.EMAIL_USERNAME, password=Setting.EMAIL_PASSWORD)
             refused = server.sendmail(from_email, recipients, message.as_string())
         if refused:
-            logSVC.logError("Certains destinataires ont été refusés par le serveur SMTP.")
+            logSVC.logError(
+                "Certains destinataires ont été refusés par le serveur SMTP."
+            )
             return False
         logSVC.logInfo(f"E-mail envoyé à {len(recipients)} destinataire(s).")
         return True
@@ -83,3 +89,40 @@ def send_app_exception_to_admin(
         print(e)
         logSVC.logError(e)
         return False
+
+
+def send_password_reset(
+    receiver: str, link: str, minutes: int, language: str, app_name: str
+) -> bool:
+    """Envoyer le lien de récupération dans la langue demandée, sans journaliser son contenu."""
+    english = language == "en"
+    message = env.get_template("password_reset.html").render(
+        app_name=app_name,
+        link=link,
+        minutes=minutes,
+        english=english,
+    )
+    subject = "Reset your password" if english else "Réinitialiser votre mot de passe"
+    return send_email(receiver, message, f"{app_name} — {subject}")
+
+
+def send_password_changed(receiver: str, language: str, app_name: str) -> bool:
+    """Notifier la modification sans transmettre de mot de passe ni de jeton."""
+    english = language == "en"
+    message = env.get_template("password_changed.html").render(
+        app_name=app_name, english=english
+    )
+    subject = "Password changed" if english else "Mot de passe modifié"
+    return send_email(receiver, message, f"{app_name} — {subject}")
+
+
+def send_recovery_email_changed(receiver: str, language: str, app_name: str) -> bool:
+    """Prévenir l’ancienne adresse après un changement des coordonnées de récupération."""
+    english = language == "en"
+    message = env.get_template("recovery_email_changed.html").render(
+        app_name=app_name, english=english
+    )
+    subject = (
+        "Recovery email changed" if english else "Adresse de récupération modifiée"
+    )
+    return send_email(receiver, message, f"{app_name} — {subject}")

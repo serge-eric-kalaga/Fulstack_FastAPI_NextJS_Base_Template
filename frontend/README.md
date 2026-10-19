@@ -14,7 +14,9 @@ Ouvrir http://localhost:3000. Les commandes npm chargent le fichier `.env.dev` �
 - `/` : accueil et navigation selon la session.
 - `/inscription` : création de compte puis connexion automatique.
 - `/connexion` : authentification avec validation des champs.
-- `/profil` : téléphone, photo et dernière connexion dans le fuseau du navigateur. L’identifiant reste en lecture seule.
+- `/profil` : téléphone, photo, dernière connexion, adresse privée de récupération et changement de mot de passe. L’identifiant reste en lecture seule.
+- `/mot-de-passe-oublie` : demande de lien par e-mail avec réponse générique.
+- `/reinitialiser-mot-de-passe` : définition d’un nouveau mot de passe à partir du lien reçu.
 - Navbar : photo du compte, menu accessible au clavier, profil et déconnexion.
 
 Photos JPEG, PNG ou WebP, maximum 5 Mio. FastAPI valide et convertit les images en WebP. La dernière connexion correspond à la dernière authentification réussie, enregistrée en UTC.
@@ -47,7 +49,7 @@ Le JWT reste dans le cookie `template_session`, HttpOnly et SameSite=Lax ; il n�
 
 La déconnexion retire le cookie et le cache privé ; elle ne révoque pas un JWT déjà émis côté API, valable jusqu’à son expiration. Aucun secret ne doit porter le préfixe `NEXT_PUBLIC_`.
 
-Sur une base existante, appliquer d’abord la migration backend `last_login_at` : voir le README racine.
+Sur une base existante, appliquer les migrations backend avec `alembic upgrade head`, notamment `0002_password_recovery` : voir le README racine.
 
 ## Vérifications
 
@@ -58,6 +60,7 @@ npm run build
 npm audit
 # Frontend et backend démarrés :
 npm run test:api
+npm run test:passwords
 ```
 
 Le test HTTP vérifie session, cookie, refus d’origine, profil, photo privée, déconnexion et reconnexion avec un compte temporaire supprimé en fin de test. Adresses personnalisables via `FRONTEND_TEST_URL` et `BACKEND_TEST_URL`.
@@ -164,3 +167,17 @@ npm run test:i18n
 Ce contrôle vérifie la parité des catalogues, les interpolations et le formatage localisé des dates. Compléter par une recette navigateur pour le changement de langue, le thème système, la persistance au rechargement, l’accessibilité clavier et l’affichage mobile.
 
 Références : [react-i18next](https://react.i18next.com/latest/using-with-hooks), [next-themes](https://github.com/pacocoursey/next-themes).
+
+## Étendre les parcours des identifiants
+
+Les composants `security.tsx` et `recovery.tsx` réutilisent `Field`, `PasswordField`, React Hook Form et les schémas Zod de `features/auth/schemas.ts`. Les confirmations sont validées dans le formulaire et dans le proxy Next.js ; seul le nouveau mot de passe est transmis au backend avec la preuve nécessaire (mot de passe actuel ou jeton). L’inscription conserve l’e-mail facultatif pour les projets qui souhaitent démarrer sans récupération par e-mail.
+
+Les services `authApi.changePassword`, `changeEmail`, `forgotPassword` et `resetPassword` passent par `apiRequest`, puis par les branches explicitement autorisées de `/api/[...path]`. Utiliser `useCredentialChange` pour une mutation qui révoque les identifiants : elle purge le cache privé, met la session à `null` et prévient les autres onglets. Son callback facultatif prépare le message de reconnexion avant la purge ; le garde du profil effectue ensuite la redirection. Ne pas stocker les mots de passe ou les jetons dans un état global persistant.
+
+Le lien de récupération utilise `#token=…` pour éviter son passage dans les requêtes de page et les logs d’accès. Le composant le lit une seule fois, efface le fragment de l’entrée d’historique courante puis le transmet uniquement dans le corps du POST de confirmation. Recharger cette page après effacement du fragment demande de rouvrir le lien reçu par e-mail. La page définit une politique `no-referrer` et n’est pas indexée. Un lien invalide, expiré ou déjà utilisé permet de demander un nouveau lien. Aucun login automatique n’est effectué après une réinitialisation.
+
+Les secrets des mutations ont une durée de cache nulle après détachement de leur observateur (`gcTime: 0`) et les champs sont effacés après succès. Le compte courant peut afficher son adresse ; les réponses publiques/listes d’utilisateurs du backend l’excluent. Le changement d’adresse requiert le mot de passe actuel et révoque également les sessions et liens existants.
+
+Les messages et validations de ces parcours sont présents dans les deux catalogues ; `Accept-Language` transmet la langue choisie aux e-mails de récupération et de notification. Les préférences de langue/thème restent conservées lors d’une révocation de session.
+
+`npm run test:passwords` vérifie les routes HTTP de réauthentification, la confirmation, les cookies, l’invalidation d’une ancienne session et la confidentialité de l’adresse. Il utilise un compte temporaire et ne déclenche aucun e-mail réel. Les tests backend capturent les e-mails et couvrent le parcours valide de bout en bout, l’expiration, le rejeu et les requêtes concurrentes. Voir le README racine pour `FRONTEND_URL`, le SMTP et les limites de demandes.

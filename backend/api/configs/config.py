@@ -21,6 +21,11 @@ class SETTINGS(BaseSettings):
     PROFILE_PHOTO_DIR: Path = Path("static/uploads/profile_photos")
     PROFILE_PHOTO_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
     PROFILE_PHOTO_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
+    FRONTEND_URL: str = "http://localhost:3000"
+    PASSWORD_RESET_EXPIRE_MINUTES: int = Field(default=30, ge=1, le=120)
+    PASSWORD_RESET_WINDOW_SECONDS: int = Field(default=900, ge=60, le=86400)
+    PASSWORD_RESET_EMAIL_LIMIT: int = Field(default=3, ge=1)
+    PASSWORD_RESET_IP_LIMIT: int = Field(default=30, ge=1)
     EMAIL_HOST: str | None = None
     EMAIL_DOMAIN: str | None = None
     EMAIL_PORT: str | None = None

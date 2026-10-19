@@ -12,6 +12,7 @@ import {
   LockKeyhole,
   UserRound,
 } from "lucide-react";
+import { AccountSecurity, type CredentialNotice } from "./security";
 import { Avatar } from "@/components/ui/avatar";
 import { Field } from "@/components/ui/field";
 import type { CurrentUser } from "@/lib/api/types";
@@ -22,10 +23,17 @@ import { profileSchema, type ProfileInput } from "./schemas";
 export function Profile() {
   const { t } = useI18n();
   const session = useSession();
+  const [credentialNotice, setCredentialNotice] =
+    useState<CredentialNotice | null>(null);
   const router = useRouter();
   useEffect(() => {
-    if (session.isSuccess && !session.data) router.replace("/connexion");
-  }, [session.isSuccess, session.data, router]);
+    if (session.isSuccess && !session.data)
+      router.replace(
+        credentialNotice
+          ? `/connexion?notice=${credentialNotice}`
+          : "/connexion",
+      );
+  }, [session.isSuccess, session.data, router, credentialNotice]);
   if (session.isError)
     return (
       <main className="page-shell profile-page">
@@ -48,9 +56,21 @@ export function Profile() {
         </div>
       </main>
     );
-  return <ProfileDetails key={session.data.username} user={session.data} />;
+  return (
+    <ProfileDetails
+      key={session.data.username}
+      user={session.data}
+      onCredentialsChanged={setCredentialNotice}
+    />
+  );
 }
-function ProfileDetails({ user }: { user: CurrentUser }) {
+function ProfileDetails({
+  user,
+  onCredentialsChanged,
+}: {
+  user: CurrentUser;
+  onCredentialsChanged: (notice: CredentialNotice) => void;
+}) {
   const { t, language } = useI18n();
   const update = useUpdateProfile();
   const photo = useUploadPhoto();
@@ -249,6 +269,10 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
               </div>
             </form>
           </section>
+          <AccountSecurity
+            email={user.email}
+            onCredentialsChanged={onCredentialsChanged}
+          />
           <section className="connection-panel">
             <span className="connection-icon">
               <Clock3 size={21} />

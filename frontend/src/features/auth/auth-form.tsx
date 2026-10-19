@@ -1,8 +1,8 @@
 "use client";
 import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -29,7 +29,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         ? registerSchema
         : registerSchema.extend({ password: loginSchema.shape.password }),
     ),
-    defaultValues: { username: "", telephone: "", password: "" },
+    defaultValues: { username: "", telephone: "", email: "", password: "" },
   });
   useEffect(() => {
     if (session.data) router.replace("/profil");
@@ -100,6 +100,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             ? t("Renseignez les informations du compte à créer.")
             : t("Utilisez le compte créé sur cette instance du template.")}
         </p>
+        {!signup ? (
+          <Suspense fallback={null}>
+            <LoginNotice />
+          </Suspense>
+        ) : null}
         <form
           className="form-stack"
           onSubmit={form.handleSubmit(submit)}
@@ -118,6 +123,24 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 : undefined
             }
           />
+          {signup ? (
+            <Field
+              id="email"
+              label={t("E-mail (facultatif)")}
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              {...form.register("email")}
+              error={
+                form.formState.errors.email?.message
+                  ? t(form.formState.errors.email.message)
+                  : undefined
+              }
+              hint={t(
+                "Nécessaire pour réinitialiser votre mot de passe par e-mail.",
+              )}
+            />
+          ) : null}
           {signup ? (
             <Field
               id="telephone"
@@ -164,6 +187,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          {!signup ? (
+            <Link className="forgot-link" href="/mot-de-passe-oublie">
+              {t("Mot de passe oublié ?")}
+            </Link>
+          ) : null}
           {mutation.error ? (
             <p role="alert" className="notice notice-error">
               {t(mutation.error.message)}
@@ -200,4 +228,23 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 }
 function ArrowUpRightSmall() {
   return <ArrowRight size={13} aria-hidden="true" />;
+}
+
+function LoginNotice() {
+  const params = useSearchParams();
+  const { t } = useI18n();
+  const notice = params.get("notice");
+  const message =
+    notice === "password-changed"
+      ? t(
+          "Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.",
+        )
+      : notice === "email-changed"
+        ? t("Adresse e-mail enregistrée. Reconnectez-vous pour continuer.")
+        : null;
+  return message ? (
+    <p className="notice notice-success" role="status">
+      {message}
+    </p>
+  ) : null;
 }

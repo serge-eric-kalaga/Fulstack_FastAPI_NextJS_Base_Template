@@ -3,6 +3,10 @@ import {
   loginSchema,
   registerSchema,
   profileSchema,
+  changePasswordSchema,
+  changeEmailSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "@/features/auth/schemas";
 import {
   BackendError,
@@ -50,7 +54,11 @@ async function handle(request: NextRequest, context: Context) {
         await backendData("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed.data),
+          body: JSON.stringify({
+            ...parsed.data,
+            email:
+              "email" in parsed.data ? parsed.data.email || null : undefined,
+          }),
         });
       }
       const login = await backendData<{ token: string }>("/api/auth/login", {
@@ -70,6 +78,80 @@ async function handle(request: NextRequest, context: Context) {
       );
       const response = jsonData(browserUser(user));
       setSession(response, login.token);
+      return response;
+    }
+    if (path === "auth/forgot-password" && method === "POST") {
+      const body = await readJson(request);
+      const input = forgotPasswordSchema.safeParse(body);
+      if (!input.success)
+        throw new BackendError(400, "Adresse e-mail invalide.");
+      const language = request.headers.get("accept-language")?.startsWith("en")
+        ? "en"
+        : "fr";
+      await backendData("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...input.data, language }),
+      });
+      return jsonData(null, 202);
+    }
+    if (path === "auth/reset-password" && method === "POST") {
+      const input = resetPasswordSchema.safeParse(await readJson(request));
+      if (!input.success)
+        throw new BackendError(
+          400,
+          input.error.issues[0]?.message ||
+            "Vérifiez les informations saisies.",
+        );
+      await backendData("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept-Language": request.headers.get("accept-language") || "fr",
+        },
+        body: JSON.stringify({
+          token: input.data.token,
+          new_password: input.data.new_password,
+        }),
+      });
+      const response = jsonData(null);
+      setSession(response, "", 0);
+      return response;
+    }
+    if (
+      (path === "profile/password" && method === "PUT") ||
+      (path === "profile/email" && method === "PATCH")
+    ) {
+      const token = requireSession(request);
+      const password = path === "profile/password";
+      const input = (
+        password ? changePasswordSchema : changeEmailSchema
+      ).safeParse(await readJson(request));
+      if (!input.success)
+        throw new BackendError(
+          400,
+          input.error.issues[0]?.message ||
+            "Vérifiez les informations saisies.",
+        );
+      const { current_password } = input.data;
+      const body =
+        "new_password" in input.data
+          ? { current_password, new_password: input.data.new_password }
+          : { current_password, email: input.data.email };
+      await backendData(
+        password ? "/api/user/me/password" : "/api/user/me/email",
+        {
+          method: password ? "PUT" : "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept-Language": request.headers.get("accept-language") || "fr",
+          },
+          body: JSON.stringify(body),
+        },
+        token,
+      );
+      const response = jsonData(null);
+      setSession(response, "", 0);
       return response;
     }
     if (path === "session" && method === "GET") {
