@@ -57,7 +57,7 @@ def send_email(receiver_email: str | list[str], message_text: str, object: str) 
 
 
 def send_app_exception_to_admin(
-    email_list: list[str] = (Setting.ADMINS_EMAIL).split(","),
+    email_list: list[str] | None = None,
     error_message: str = None,
     error_type: str = "Exception | Error | Bug",
 ) -> bool:
@@ -75,8 +75,11 @@ def send_app_exception_to_admin(
             "app_name": Setting.APP_NAME,
         }
         template: Template = env.get_template("error500_admin_mail.html")
+        recipients = (
+            email_list if email_list is not None else Setting.ADMINS_EMAIL.split(",")
+        )
         success = True
-        for email in email_list:
+        for email in recipients:
             message = template.render(**params)
             sent = send_email(
                 receiver_email=email,
@@ -84,7 +87,7 @@ def send_app_exception_to_admin(
                 object=f"{Setting.APP_NAME} - Error 500",
             )
             success = sent and success
-        return success if email_list else False
+        return success if recipients else False
     except Exception as e:
         print(e)
         logSVC.logError(e)
@@ -128,11 +131,15 @@ def send_recovery_email_changed(receiver: str, language: str, app_name: str) -> 
     return send_email(receiver, message, f"{app_name} — {subject}")
 
 
-def send_email_verification(receiver: str, link: str, minutes: int, language: str, app_name: str) -> bool:
+def send_email_verification(
+    receiver: str, link: str, minutes: int, language: str, app_name: str
+) -> bool:
     """Envoyer un lien de confirmation, dans la langue du parcours d’inscription."""
     english = language == "en"
     message = env.get_template("email_verification.html").render(
         app_name=app_name, link=link, minutes=minutes, english=english
     )
-    subject = "Confirm your email address" if english else "Confirmez votre adresse e-mail"
+    subject = (
+        "Confirm your email address" if english else "Confirmez votre adresse e-mail"
+    )
     return send_email(receiver, message, f"{app_name} — {subject}")

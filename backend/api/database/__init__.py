@@ -24,8 +24,8 @@ def get_db():
 
 # -------------- Dans ce bloc sera importés tous les models
 
-from .basetemplate import BaseTemplate
-from .models import User, Base
+from .basetemplate import BaseTemplate as BaseTemplate
+from .models import User as User, Base
 # -------------------------------------------------
 
 

@@ -48,3 +48,17 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "api"
 module-root = "."
+
+[dependency-groups]
+dev = ["ruff==0.17.1"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv", "logs", "static"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "UP017", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Les modèles utilisent BaseTemplate exporté par ce package : imports différés intentionnels.
+"api/database/__init__.py" = ["E402"]

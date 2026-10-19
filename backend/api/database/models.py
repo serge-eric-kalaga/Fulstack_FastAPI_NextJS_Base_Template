@@ -1,5 +1,4 @@
 from pydantic import field_validator
-from typing import Optional, List
 from urllib.parse import quote
 from api.database import BaseTemplate
 from sqlalchemy import (
@@ -7,13 +6,6 @@ from sqlalchemy import (
     Integer,
     Boolean,
     DateTime,
-    String,
-    JSON,
-    ForeignKey,
-    Text,
-    ARRAY,
-    Table,
-    Column,
     VARCHAR,
 )
 from sqlalchemy.orm import (
@@ -21,8 +13,6 @@ from sqlalchemy.orm import (
     mapped_column,
     MappedAsDataclass,
     DeclarativeBase,
-    relationship,
-    WriteOnlyMapped,
 )
 from datetime import datetime, date
 

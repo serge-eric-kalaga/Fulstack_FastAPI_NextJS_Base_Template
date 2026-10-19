@@ -1,10 +1,17 @@
 """Dépendances de cache Redis réutilisables et invalidation par groupe métier."""
 
+from typing import Annotated, Any
 from contextlib import asynccontextmanager
 from hashlib import sha256
 
 from fastapi import Depends, HTTPException, Request
-from redis_fastapi import FastAPIRedis, cache, cache_evict, default_key_builder, get_settings
+from redis_fastapi import (
+    FastAPIRedis,
+    cache,
+    cache_evict,
+    default_key_builder,
+    get_settings,
+)
 from redis_fastapi.deps import get_async_redis
 
 from api.services.jwt import getPayload
@@ -33,7 +40,9 @@ def _user_key(request: Request, eviction_group: str = "", prefix: str = "") -> s
     """Séparer les entrées Redis par utilisateur sans stocker son JWT dans la clé."""
     identity = getattr(request.state, "cache_identity", None)
     if not identity:
-        raise HTTPException(status_code=401, detail="Authentification requise pour ce cache")
+        raise HTTPException(
+            status_code=401, detail="Authentification requise pour ce cache"
+        )
     base = default_key_builder(request, eviction_group=eviction_group, prefix=prefix)
     return f"{base}:user:{sha256(identity.encode()).hexdigest()}"
 
@@ -49,7 +58,11 @@ def cached_response(group: str, ttl: int | None = None, *, authenticated: bool =
         raise ValueError("Un groupe non vide et un TTL strictement positif sont requis")
     guard = getPayload if authenticated else lambda: None
 
-    async def dependency(request: Request, payload=Depends(guard), redis=Depends(get_cache_client)):
+    async def dependency(
+        request: Request,
+        payload: Annotated[Any, Depends(guard)],
+        redis: Annotated[Any, Depends(get_cache_client)],
+    ):
         config = request.app.state.config
         if not config.CACHE_ENABLED:
             yield
@@ -75,11 +88,15 @@ def invalidate_cache(group: str):
     if not group:
         raise ValueError("Le groupe d’invalidation ne peut pas être vide")
 
-    async def dependency(request: Request, redis=Depends(get_cache_client)):
+    async def dependency(
+        request: Request, redis: Annotated[Any, Depends(get_cache_client)]
+    ):
         if not request.app.state.config.CACHE_ENABLED:
             yield
             return
-        async with asynccontextmanager(cache_evict(eviction_group=group))(request=request, redis=redis):
+        async with asynccontextmanager(cache_evict(eviction_group=group))(
+            request=request, redis=redis
+        ):
             yield
 
     return dependency

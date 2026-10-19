@@ -1,4 +1,4 @@
-from test.baseTest import BaseTest, User
+from test.baseTest import BaseTest
 
 
 class TestUser(BaseTest):

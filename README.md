@@ -17,6 +17,7 @@ Base réutilisable pour des applications avec une API **FastAPI** et un frontend
 - [Migrations avec Alembic](#migrations-avec-alembic)
 - [Gestion des dépendances](#gestion-des-dépendances)
 - [Tests et vérifications](#tests-et-vérifications)
+- [Intégration continue avec GitHub Actions](#intégration-continue-avec-github-actions)
 
 ## Stack technique
 
@@ -433,7 +434,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **58 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **59 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
@@ -499,7 +500,7 @@ En cas d’échec SMTP, la réponse publique reste générique et le nouveau jet
 
 Routes publiques ajoutées : `POST /api/auth/forgot-password` et `POST /api/auth/reset-password`. Les contrats détaillés sont visibles dans Swagger. Les modèles d’e-mail sont dans `backend/api/html/email/password_reset.html`, `password_changed.html` et `recovery_email_changed.html`. Une modification de l’adresse de récupération notifie son ancienne adresse, si elle existe.
 
-Validation : 58 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
+Validation : 59 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
 
 ### Confirmation optionnelle de l’adresse e-mail
 
@@ -531,3 +532,35 @@ Le renvoi est accessible après inscription ou depuis le lien **Renvoyer le lien
 Routes FastAPI : `GET /api/auth/config`, `POST /api/auth/resend-verification` (`email`, `language`) et `POST /api/auth/verify-email` (`token`). Le résultat de `POST /api/auth/register` inclut `verification_required`, sans JWT. Le proxy Next retourne `data: null` avec le statut `202` lorsque la confirmation est attendue, et conserve le profil/session habituel quand elle ne l’est pas. `email_verified_at` est visible uniquement dans le profil privé ; les hashes et expirations ne sont jamais sérialisés.
 
 Le modèle bilingue du message est `backend/api/html/email/email_verification.html`. Les tests de `backend/test/test_email_verification.py` couvrent les deux modes, les comptes existants, le renvoi, l’expiration, la concurrence, les limites, les pannes SMTP et les contournements par connexion Swagger, JWT ou reset. Les messages sont capturés localement pendant la recette ; un serveur SMTP fonctionnel reste nécessaire pour une livraison réelle.
+
+
+## Intégration continue avec GitHub Actions
+
+Le workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) s’exécute à l’ouverture, à la réouverture et à chaque nouveau commit d’une pull request, sur toutes les branches cibles. Il peut aussi être lancé manuellement depuis l’onglet **Actions → CI → Run workflow**, après publication du workflow sur la branche par défaut. Une nouvelle exécution sur la même PR annule la précédente. Aucun déploiement n’est effectué.
+
+| Contrôle GitHub | Vérifications |
+| --- | --- |
+| `Backend (sqlite)` | Installation `uv sync --frozen --group dev`, Ruff, suite Pytest avec Redis réel et vérification des migrations sur SQLite |
+| `Backend (mysql)` | Mêmes contrôles avec MySQL 8.4 et Redis 7.4 jetables, y compris les tests de concurrence et les migrations MySQL |
+| `Frontend` | `npm ci`, ESLint, TypeScript, traductions FR/EN, build de production et tests HTTP `test:api` / `test:passwords` contre Next.js en mode production et une API isolée |
+
+La CI utilise Python 3.14, Node.js 24 et uv 0.13.1, avec les dépendances des fichiers de verrouillage. Ruff 0.17.1 est une dépendance du groupe `dev`, configurée dans `backend/pyproject.toml` : erreurs Python, imports/variables inutilisés, comparaisons, alias UTC et dépendances FastAPI. L’exception `E402` du package `api/database` conserve les imports différés nécessaires à l’enregistrement des modèles.
+
+Tous les paramètres de CI sont des valeurs jetables définies dans le workflow. **Aucun fichier `.env` n’est créé dans le frontend ou le backend, et aucun secret GitHub n’est requis.** Les fichiers `.env.dev`, `.env.test` et `.env.grafana` locaux restent indépendants. Le transport SMTP est simulé dans Pytest ; pour les tests HTTP, sa destination est limitée à la boucle locale sur un port fermé. La vérification d’e-mail est désactivée pour ces parcours HTTP classiques, et ses deux modes sont testés par la suite backend.
+
+Les tests backend peuvent supprimer et recréer leurs tables : ils utilisent exclusivement les bases des services jetables du job. `TEST_REDIS_URL` active les tests de cache avec Redis réel. Le contrôle MySQL des migrations crée puis supprime des bases temporaires avec le compte administrateur du service de CI ; ce compte et ce mot de passe ne sont destinés à aucun déploiement.
+
+Le script `backend/scripts/check_migrations.py` crée une **base de test temporaire avec le schéma antérieur à Alembic**, applique `upgrade head`, exécute `alembic check`, teste `downgrade -1` puis `upgrade head`, et vérifie la conservation d’un utilisateur. Cette référence figée est uniquement une fixture de CI : elle n’ajoute aucune migration historique. Le script ne lance pas `Base.metadata.create_all()`, car cela pourrait masquer un champ ajouté au modèle sans migration. Un test négatif vérifie explicitement que ce cas fait échouer la CI. En local, sans `TEST_MIGRATION_DATABASE_URL`, le script utilise un fichier SQLite temporaire.
+
+Pour reproduire les contrôles Python depuis `backend/`, avec les variables racine habituelles exportées et une **base jetable** :
+
+```bash
+uv sync --frozen --group dev
+uv run --frozen ruff check --config pyproject.toml . ../scripts
+uv run --frozen pytest -q
+uv run --frozen python scripts/check_migrations.py
+```
+
+Les commandes frontend restent `npm run lint`, `npm run typecheck`, `npm run test:i18n` et `npm run build`. Les tests HTTP demandent un backend disponible et un frontend lancé avec `npm run start` ; les variables `BACKEND_TEST_URL`, `FRONTEND_TEST_URL`, `BACKEND_URL`, `APP_ORIGIN` et `SESSION_COOKIE_SECURE=false` doivent correspondre aux URLs locales utilisées.
+
+Les actions sont référencées par SHA, le jeton GitHub dispose uniquement de `contents: read` et le checkout ne conserve pas ses identifiants. Le déclencheur est [`pull_request`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request), ce qui permet les PR de forks sans exposer de secrets. Les journaux des serveurs HTTP sont affichés si le parcours échoue, puis leurs processus sont arrêtés. Pour rendre ces résultats obligatoires avant une fusion, sélectionner les trois contrôles ci-dessus dans les règles de protection de la branche du dépôt cible.

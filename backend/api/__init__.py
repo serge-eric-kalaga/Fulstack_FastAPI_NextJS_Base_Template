@@ -1,10 +1,8 @@
 from api.configs import SETTINGS
-from pydantic_settings import BaseSettings
 from fastapi import FastAPI
 
 
 def createApp(config: SETTINGS) -> FastAPI:
-    from api.configs.config import Setting
     import werkzeug.exceptions as werkexcept
     from fastapi import Request, HTTPException
     from fastapi.middleware.cors import CORSMiddleware

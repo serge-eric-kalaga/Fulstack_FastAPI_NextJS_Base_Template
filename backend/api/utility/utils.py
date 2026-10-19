@@ -10,7 +10,6 @@ Ce module contient des fonctions utilitaires
 """
 
 from api.services.socket import server
-import requests
 
 
 async def sendSocket(event: str, data: dict):

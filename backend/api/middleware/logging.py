@@ -3,11 +3,11 @@ import time
 import json
 from typing import Callable
 from uuid import uuid4
-from fastapi import FastAPI, Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, DispatchFunction, RequestResponseEndpoint
+from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.types import ASGIApp, Message
+from starlette.types import Message
 
 class AsyncIteratorWrapper:
     """The following is a utility class that transforms a
@@ -92,7 +92,7 @@ class RouterLoggingMiddleware(BaseHTTPMiddleware):
         try:
             body = await request.json()
             request_logging["body"] = body
-        except:
+        except Exception:
             body = None
 
         return request_logging
@@ -127,7 +127,7 @@ class RouterLoggingMiddleware(BaseHTTPMiddleware):
 
         try:
             resp_body = json.loads(resp_body[0].decode())
-        except:
+        except Exception:
             resp_body = str(resp_body)
 
         response_logging["body"] = resp_body

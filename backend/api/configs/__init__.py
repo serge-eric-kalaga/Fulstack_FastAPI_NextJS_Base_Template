@@ -2,4 +2,4 @@
 Ce package contient les configurations de l'application.
 """
 
-from .config import SETTINGS, Setting
+from .config import SETTINGS as SETTINGS, Setting as Setting

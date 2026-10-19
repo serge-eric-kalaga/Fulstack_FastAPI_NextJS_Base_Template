@@ -189,3 +189,8 @@ Activer `EMAIL_VERIFICATION_ENABLED=true` dans **`.env.dev` à la racine**, conf
 `authApi.register()` retourne un profil connecté en mode classique ou `null` avec un statut HTTP `202` si le compte attend une confirmation. `useAuthenticate` purge alors la session et le formulaire affiche `ResendVerification`, également accessible via `/confirmer-email`. `authApi.resendVerification(email, language)` réutilise le proxy et normalise les erreurs. Les réponses de renvoi ne révèlent pas l’existence du compte.
 
 La page `/confirmer-email` lit le fragment du lien, l’efface de l’URL et attend un clic explicite avant `authApi.verifyEmail(token)`. Aucun effet React ne consomme le jeton et aucun secret n’est persisté. La mutation `useCredentialChange` purge les données privées et synchronise les onglets, puis invite à se connecter manuellement. Les textes sont fournis en FR/EN et suivent les thèmes existants. Un changement d’adresse depuis le profil peut exiger une nouvelle confirmation : le message de reconnexion le précise.
+
+
+### Contrôles automatiques des pull requests
+
+Le workflow racine `.github/workflows/ci.yml` installe les dépendances avec `npm ci`, exécute ESLint, TypeScript et les tests de traduction, puis construit Next.js. Les tests `npm run test:api` et `npm run test:passwords` s’exécutent sur ce **build de production**, avec une API et une base SQLite jetables. Aucune variable locale ni aucun fichier `.env` de sous-répertoire n’est nécessaire. Voir la section intégration continue du README racine pour les contrôles backend, les migrations et la reproduction locale.

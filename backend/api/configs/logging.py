@@ -33,15 +33,15 @@ def __toLog(logger: Logger, resp: BaseModel | dict, atype: int):
         case 2:
             _log = logger.error
             other_params = {"exc_info": True}
-        case other:
+        case _:
             raise Exception("an error in the log")
     _resp = resp
-    if type(resp) == BaseModel:
+    if isinstance(resp, BaseModel):
         _resp = resp.model_dump()
     _log(
         f"{_resp}",
         extra={"caller_path": caller_filename, "caller_lineno": caller_lineno},
-        **other_params if other_params != None else {},
+        **other_params if other_params is not None else {},
     )
     return resp
 

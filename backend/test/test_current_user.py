@@ -1,7 +1,6 @@
 """Profil du compte courant, horodatage réel et migration additive."""
 from datetime import datetime
 from pathlib import Path
-from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic import command
