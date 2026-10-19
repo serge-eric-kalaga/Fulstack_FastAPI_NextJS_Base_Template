@@ -74,8 +74,9 @@ class CreateUserModel(BaseModel):
     email: EmailStr | None = Field(
         default=None,
         max_length=254,
-        description="Adresse de récupération facultative, nécessaire pour le parcours mot de passe oublié.",
+        description="Adresse privée de récupération, obligatoire si EMAIL_VERIFICATION_ENABLED est activée.",
     )
+    language: str = Field(default="fr", pattern="^(fr|en)$", description="Langue du lien de confirmation : fr ou en.")
     telephone: Optional[str] = Field(
         default=None,
         description="Numéro de téléphone facultatif.",
@@ -109,6 +110,12 @@ class UpdateUserModel(BaseModel):
     )
 
 
+class RegistrationModel(UserModel):
+    """Résultat d’inscription ; un compte en attente ne reçoit aucun JWT."""
+
+    verification_required: bool = Field(description="Confirmer l’adresse avant de se connecter.")
+
+
 class UserResponseModel(Response):
     """Réponse standard contenant un utilisateur."""
 
@@ -130,6 +137,10 @@ class CurrentUserModel(UserModel):
         default=None, description="Adresse privée de récupération du compte connecté."
     )
 
+    email_verified_at: datetime | None = Field(
+        default=None, description="Date UTC de confirmation de l’adresse actuelle ; null si non confirmée."
+    )
+
     last_login_at: datetime | None = Field(
         default=None,
         description="Date UTC de la dernière connexion réussie ; null pour un compte jamais connecté.",
@@ -137,7 +148,7 @@ class CurrentUserModel(UserModel):
         examples=["2026-10-19T16:30:00Z"],
     )
 
-    @field_validator("last_login_at", mode="before")
+    @field_validator("last_login_at", "email_verified_at", mode="before")
     @classmethod
     def utc_timestamp(cls, value):
         """Rendre explicite le fuseau UTC des valeurs DATETIME stockées en base."""

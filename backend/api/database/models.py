@@ -81,6 +81,19 @@ class User(Base, BaseTemplate):
         DateTime(), nullable=True, init=False, default=None
     )
 
+    email_verification_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, init=False, default=False, server_default="0"
+    )
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(), nullable=True, init=False, default=None
+    )
+    email_verification_digest: Mapped[str | None] = mapped_column(
+        VARCHAR(64), nullable=True, index=True, init=False, default=None
+    )
+    email_verification_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(), nullable=True, init=False, default=None
+    )
+
     @property
     def profile_photo_url(self) -> str | None:
         """Retourner l’URL authentifiée de la photo, versionnée après remplacement."""

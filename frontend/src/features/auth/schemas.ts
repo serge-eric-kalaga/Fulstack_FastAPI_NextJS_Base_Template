@@ -80,3 +80,12 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const confirmEmailSchema = z.object({
+  token: z
+    .string()
+    .regex(
+      /^[A-Za-z0-9_-]{43}$/,
+      "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.",
+    ),
+});

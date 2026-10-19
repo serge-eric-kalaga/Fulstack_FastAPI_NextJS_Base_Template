@@ -26,16 +26,18 @@ export function PageTitle() {
   const { t } = useI18n();
   const pathname = usePathname();
   const title =
-    pathname === "/mot-de-passe-oublie"
-      ? t("Mot de passe oublié")
-      : pathname === "/reinitialiser-mot-de-passe"
-        ? t("Réinitialiser le mot de passe")
-        : pathname === "/connexion"
-          ? t("Se connecter")
-          : pathname === "/inscription"
-            ? t("Créer un compte")
-            : pathname === "/profil"
-              ? t("Mon profil")
-              : null;
+    pathname === "/confirmer-email"
+      ? t("Confirmer l’adresse e-mail")
+      : pathname === "/mot-de-passe-oublie"
+        ? t("Mot de passe oublié")
+        : pathname === "/reinitialiser-mot-de-passe"
+          ? t("Réinitialiser le mot de passe")
+          : pathname === "/connexion"
+            ? t("Se connecter")
+            : pathname === "/inscription"
+              ? t("Créer un compte")
+              : pathname === "/profil"
+                ? t("Mon profil")
+                : null;
   return <title>{title ? `${title} · Fullstack` : "Fullstack Template"}</title>;
 }

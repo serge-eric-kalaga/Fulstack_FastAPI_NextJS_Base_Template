@@ -16,8 +16,22 @@ export const authApi = {
     apiRequest<CurrentUser | null>("/session", { signal }),
   login: (body: LoginInput) =>
     apiRequest<CurrentUser>("/auth/login", { method: "POST", body }),
-  register: (body: RegisterInput) =>
-    apiRequest<CurrentUser>("/auth/register", { method: "POST", body }),
+  config: () =>
+    apiRequest<{ email_verification_enabled: boolean }>("/auth/config"),
+  resendVerification: (email: string, language: string) =>
+    apiRequest<null>("/auth/resend-verification", {
+      method: "POST",
+      body: { email },
+      headers: { "Accept-Language": language },
+    }),
+  verifyEmail: (token: string) =>
+    apiRequest<null>("/auth/verify-email", { method: "POST", body: { token } }),
+  register: (body: RegisterInput, language: string) =>
+    apiRequest<CurrentUser | null>("/auth/register", {
+      method: "POST",
+      body,
+      headers: { "Accept-Language": language },
+    }),
   changePassword: (body: ChangePasswordInput, language: string) =>
     apiRequest<null>("/profile/password", {
       method: "PUT",

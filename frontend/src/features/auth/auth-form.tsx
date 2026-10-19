@@ -12,6 +12,9 @@ import {
   LoaderCircle,
   ShieldCheck,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { authApi } from "./api";
+import { ResendVerification } from "./email-verification";
 import { Field } from "@/components/ui/field";
 import { useAuthenticate, useSession } from "./hooks";
 import { loginSchema, registerSchema, type RegisterInput } from "./schemas";
@@ -19,6 +22,15 @@ import { loginSchema, registerSchema, type RegisterInput } from "./schemas";
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const { t } = useI18n();
   const signup = mode === "register";
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const config = useQuery({
+    queryKey: ["auth-config"],
+    queryFn: authApi.config,
+    enabled: signup,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const verificationRequired = config.data?.email_verification_enabled === true;
   const router = useRouter();
   const session = useSession();
   const mutation = useAuthenticate(mode);
@@ -39,10 +51,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       const parsed = loginSchema.safeParse(values);
       if (!parsed.success) return;
     }
+    if (signup && verificationRequired && !values.email) {
+      form.setError("email", {
+        message: "Une adresse e-mail est requise pour confirmer votre compte.",
+      });
+      return;
+    }
     mutation.mutate(values, {
-      onSuccess: () => {
+      onSuccess: (user) => {
         form.reset();
-        router.replace("/profil");
+        if (signup && !user) setPendingEmail(values.email || "");
+        else router.replace("/profil");
       },
     });
   }
@@ -105,116 +124,155 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             <LoginNotice />
           </Suspense>
         ) : null}
-        <form
-          className="form-stack"
-          onSubmit={form.handleSubmit(submit)}
-          noValidate
-        >
-          <Field
-            id="username"
-            label={t("Nom d’utilisateur")}
-            autoComplete="username"
-            placeholder="ex. alex_martin"
-            maxLength={64}
-            {...form.register("username")}
-            error={
-              form.formState.errors.username?.message
-                ? t(form.formState.errors.username.message)
-                : undefined
-            }
-          />
-          {signup ? (
-            <Field
-              id="email"
-              label={t("E-mail (facultatif)")}
-              type="email"
-              autoComplete="email"
-              maxLength={254}
-              {...form.register("email")}
-              error={
-                form.formState.errors.email?.message
-                  ? t(form.formState.errors.email.message)
-                  : undefined
-              }
-              hint={t(
-                "Nécessaire pour réinitialiser votre mot de passe par e-mail.",
+        {pendingEmail !== null ? (
+          <>
+            <p role="status" className="notice notice-success">
+              {t(
+                "Compte créé. Consultez votre boîte e-mail pour confirmer votre adresse avant de vous connecter.",
               )}
-            />
-          ) : null}
-          {signup ? (
+            </p>
+            <ResendVerification initialEmail={pendingEmail} />
+          </>
+        ) : (
+          <form
+            className="form-stack"
+            onSubmit={form.handleSubmit(submit)}
+            noValidate
+          >
             <Field
-              id="telephone"
-              label={t("Téléphone (facultatif)")}
-              autoComplete="tel"
-              type="tel"
-              placeholder="+226 70 00 00 00"
-              maxLength={32}
-              {...form.register("telephone")}
+              id="username"
+              label={t("Nom d’utilisateur")}
+              autoComplete="username"
+              placeholder="ex. alex_martin"
+              maxLength={64}
+              {...form.register("username")}
               error={
-                form.formState.errors.telephone?.message
-                  ? t(form.formState.errors.telephone.message)
+                form.formState.errors.username?.message
+                  ? t(form.formState.errors.username.message)
                   : undefined
               }
             />
-          ) : null}
-          <div className="password-field">
-            <Field
-              id="password"
-              label={t("Mot de passe")}
-              type={showPassword ? "text" : "password"}
-              autoComplete={signup ? "new-password" : "current-password"}
-              placeholder={
-                signup ? t("8 caractères minimum") : t("Votre mot de passe")
-              }
-              maxLength={128}
-              {...form.register("password")}
-              error={
-                form.formState.errors.password?.message
-                  ? t(form.formState.errors.password.message)
-                  : undefined
-              }
-            />
+            {signup ? (
+              <Field
+                id="email"
+                label={
+                  verificationRequired
+                    ? t("Adresse e-mail")
+                    : t("E-mail (facultatif)")
+                }
+                required={verificationRequired}
+                type="email"
+                autoComplete="email"
+                maxLength={254}
+                {...form.register("email")}
+                error={
+                  form.formState.errors.email?.message
+                    ? t(form.formState.errors.email.message)
+                    : undefined
+                }
+                hint={t(
+                  verificationRequired
+                    ? "Confirmez votre adresse e-mail pour activer votre compte."
+                    : "Nécessaire pour réinitialiser votre mot de passe par e-mail.",
+                )}
+              />
+            ) : null}
+            {signup ? (
+              <Field
+                id="telephone"
+                label={t("Téléphone (facultatif)")}
+                autoComplete="tel"
+                type="tel"
+                placeholder="+226 70 00 00 00"
+                maxLength={32}
+                {...form.register("telephone")}
+                error={
+                  form.formState.errors.telephone?.message
+                    ? t(form.formState.errors.telephone.message)
+                    : undefined
+                }
+              />
+            ) : null}
+            <div className="password-field">
+              <Field
+                id="password"
+                label={t("Mot de passe")}
+                type={showPassword ? "text" : "password"}
+                autoComplete={signup ? "new-password" : "current-password"}
+                placeholder={
+                  signup ? t("8 caractères minimum") : t("Votre mot de passe")
+                }
+                maxLength={128}
+                {...form.register("password")}
+                error={
+                  form.formState.errors.password?.message
+                    ? t(form.formState.errors.password.message)
+                    : undefined
+                }
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={
+                  showPassword
+                    ? t("Masquer le mot de passe")
+                    : t("Afficher le mot de passe")
+                }
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {!signup ? (
+              <Link className="forgot-link" href="/mot-de-passe-oublie">
+                {t("Mot de passe oublié ?")}
+              </Link>
+            ) : null}
+            {signup && config.error ? (
+              <p role="alert" className="notice notice-error">
+                {t(config.error.message)}{" "}
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => config.refetch()}
+                >
+                  {t("Réessayer")}
+                </button>
+              </p>
+            ) : null}
+            {mutation.error ? (
+              <p role="alert" className="notice notice-error">
+                {t(mutation.error.message)}
+              </p>
+            ) : null}
             <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={
-                showPassword
-                  ? t("Masquer le mot de passe")
-                  : t("Afficher le mot de passe")
+              className="button button-primary button-full"
+              type="submit"
+              disabled={
+                mutation.isPending || !!session.data || (signup && !config.data)
               }
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {mutation.isPending ? (
+                <>
+                  <LoaderCircle size={17} className="spin" />
+                  {signup ? t("Création du compte…") : t("Connexion en cours…")}
+                </>
+              ) : (
+                <>
+                  {signup ? t("Créer mon compte") : t("Se connecter")}
+                  <ArrowRight size={17} />
+                </>
+              )}
             </button>
-          </div>
-          {!signup ? (
-            <Link className="forgot-link" href="/mot-de-passe-oublie">
-              {t("Mot de passe oublié ?")}
+          </form>
+        )}
+        {!signup ? (
+          <p className="auth-switch">
+            <Link href="/confirmer-email">
+              {t("Renvoyer le lien de confirmation")}
             </Link>
-          ) : null}
-          {mutation.error ? (
-            <p role="alert" className="notice notice-error">
-              {t(mutation.error.message)}
-            </p>
-          ) : null}
-          <button
-            className="button button-primary button-full"
-            type="submit"
-            disabled={mutation.isPending || !!session.data}
-          >
-            {mutation.isPending ? (
-              <>
-                <LoaderCircle size={17} className="spin" />
-                {signup ? t("Création du compte…") : t("Connexion en cours…")}
-              </>
-            ) : (
-              <>
-                {signup ? t("Créer mon compte") : t("Se connecter")}
-                <ArrowRight size={17} />
-              </>
-            )}
-          </button>
-        </form>
+          </p>
+        ) : null}
         <p className="auth-switch">
           {signup ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <Link href={signup ? "/connexion" : "/inscription"}>
@@ -240,7 +298,9 @@ function LoginNotice() {
           "Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.",
         )
       : notice === "email-changed"
-        ? t("Adresse e-mail enregistrée. Reconnectez-vous pour continuer.")
+        ? t(
+            "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter.",
+          )
         : null;
   return message ? (
     <p className="notice notice-success" role="status">

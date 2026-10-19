@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/confirmer-email",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+      {
         source: "/reinitialiser-mot-de-passe",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },

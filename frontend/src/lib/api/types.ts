@@ -2,6 +2,7 @@
 export interface CurrentUser {
   username: string;
   email: string | null;
+  email_verified_at: string | null;
   telephone: string | null;
   profile_photo_url: string | null;
   last_login_at: string | null;

@@ -6,7 +6,13 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError
 
 
-def create_user(user: CreateUserModel, db: Session) -> User:
+def create_user(
+    user: CreateUserModel, db: Session, verification_required: bool = False
+) -> User:
+    if verification_required and not user.email:
+        raise HTTPException(
+            400, "Une adresse e-mail est requise pour confirmer votre compte."
+        )
     user_exist = User.getOrNone(db=db, username=user.username)
     if user_exist:
         raise HTTPException(status_code=400, detail="Cet utilisateur existe déjà")
@@ -16,6 +22,7 @@ def create_user(user: CreateUserModel, db: Session) -> User:
         password=generate_password_hash(user.password),
         telephone=user.telephone,
     )
+    new_user.email_verification_required = verification_required
     new_user.email = str(user.email).lower() if user.email else None
     try:
         new_user.saveWithCommit(db=db)

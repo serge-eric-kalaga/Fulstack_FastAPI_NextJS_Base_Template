@@ -12,7 +12,7 @@ Ouvrir http://localhost:3000. Les commandes npm chargent le fichier `.env.dev` �
 ## Parcours
 
 - `/` : accueil et navigation selon la session.
-- `/inscription` : création de compte puis connexion automatique.
+- `/inscription` : création de compte puis confirmation par e-mail si l’option est active ; sinon connexion automatique.
 - `/connexion` : authentification avec validation des champs.
 - `/profil` : téléphone, photo, dernière connexion, adresse privée de récupération et changement de mot de passe. L’identifiant reste en lecture seule.
 - `/mot-de-passe-oublie` : demande de lien par e-mail avec réponse générique.
@@ -170,7 +170,7 @@ Références : [react-i18next](https://react.i18next.com/latest/using-with-hooks
 
 ## Étendre les parcours des identifiants
 
-Les composants `security.tsx` et `recovery.tsx` réutilisent `Field`, `PasswordField`, React Hook Form et les schémas Zod de `features/auth/schemas.ts`. Les confirmations sont validées dans le formulaire et dans le proxy Next.js ; seul le nouveau mot de passe est transmis au backend avec la preuve nécessaire (mot de passe actuel ou jeton). L’inscription conserve l’e-mail facultatif pour les projets qui souhaitent démarrer sans récupération par e-mail.
+Les composants `security.tsx` et `recovery.tsx` réutilisent `Field`, `PasswordField`, React Hook Form et les schémas Zod de `features/auth/schemas.ts`. Les confirmations sont validées dans le formulaire et dans le proxy Next.js ; seul le nouveau mot de passe est transmis au backend avec la preuve nécessaire (mot de passe actuel ou jeton). L’inscription conserve l’e-mail facultatif lorsque `EMAIL_VERIFICATION_ENABLED=false` ; il devient obligatoire lorsque la confirmation est activée.
 
 Les services `authApi.changePassword`, `changeEmail`, `forgotPassword` et `resetPassword` passent par `apiRequest`, puis par les branches explicitement autorisées de `/api/[...path]`. Utiliser `useCredentialChange` pour une mutation qui révoque les identifiants : elle purge le cache privé, met la session à `null` et prévient les autres onglets. Son callback facultatif prépare le message de reconnexion avant la purge ; le garde du profil effectue ensuite la redirection. Ne pas stocker les mots de passe ou les jetons dans un état global persistant.
 
@@ -181,3 +181,11 @@ Les secrets des mutations ont une durée de cache nulle après détachement de l
 Les messages et validations de ces parcours sont présents dans les deux catalogues ; `Accept-Language` transmet la langue choisie aux e-mails de récupération et de notification. Les préférences de langue/thème restent conservées lors d’une révocation de session.
 
 `npm run test:passwords` vérifie les routes HTTP de réauthentification, la confirmation, les cookies, l’invalidation d’une ancienne session et la confidentialité de l’adresse. Il utilise un compte temporaire et ne déclenche aucun e-mail réel. Les tests backend capturent les e-mails et couvrent le parcours valide de bout en bout, l’expiration, le rejeu et les requêtes concurrentes. Voir le README racine pour `FRONTEND_URL`, le SMTP et les limites de demandes.
+
+### Vérifier l’e-mail à l’inscription
+
+Activer `EMAIL_VERIFICATION_ENABLED=true` dans **`.env.dev` à la racine**, configurer le SMTP et `FRONTEND_URL`, appliquer `0003_email_verification`, puis recréer le service backend. `authApi.config()` lit le réglage public ; TanStack Query partage cette donnée et le formulaire rend l’e-mail obligatoire. Le backend demeure l’autorité même si un client contourne le formulaire.
+
+`authApi.register()` retourne un profil connecté en mode classique ou `null` avec un statut HTTP `202` si le compte attend une confirmation. `useAuthenticate` purge alors la session et le formulaire affiche `ResendVerification`, également accessible via `/confirmer-email`. `authApi.resendVerification(email, language)` réutilise le proxy et normalise les erreurs. Les réponses de renvoi ne révèlent pas l’existence du compte.
+
+La page `/confirmer-email` lit le fragment du lien, l’efface de l’URL et attend un clic explicite avant `authApi.verifyEmail(token)`. Aucun effet React ne consomme le jeton et aucun secret n’est persisté. La mutation `useCredentialChange` purge les données privées et synchronise les onglets, puis invite à se connecter manuellement. Les textes sont fournis en FR/EN et suivent les thèmes existants. Un changement d’adresse depuis le profil peut exiger une nouvelle confirmation : le message de reconnexion le précise.

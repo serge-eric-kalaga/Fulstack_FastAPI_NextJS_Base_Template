@@ -7,6 +7,7 @@ import {
   changeEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  confirmEmailSchema,
 } from "@/features/auth/schemas";
 import {
   BackendError,
@@ -31,6 +32,45 @@ async function handle(request: NextRequest, context: Context) {
   const method = request.method;
   try {
     if (method !== "GET") checkOrigin(request);
+    if (path === "auth/config" && method === "GET") {
+      return jsonData(
+        await backendData<{ email_verification_enabled: boolean }>(
+          "/api/auth/config",
+        ),
+      );
+    }
+    if (path === "auth/resend-verification" && method === "POST") {
+      const input = forgotPasswordSchema.safeParse(await readJson(request));
+      if (!input.success)
+        throw new BackendError(400, "Adresse e-mail invalide.");
+      await backendData("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...input.data,
+          language: request.headers.get("accept-language")?.startsWith("en")
+            ? "en"
+            : "fr",
+        }),
+      });
+      return jsonData(null, 202);
+    }
+    if (path === "auth/verify-email" && method === "POST") {
+      const input = confirmEmailSchema.safeParse(await readJson(request));
+      if (!input.success)
+        throw new BackendError(
+          400,
+          "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.",
+        );
+      await backendData("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input.data),
+      });
+      const response = jsonData(null);
+      setSession(response, "", 0);
+      return response;
+    }
     if (path === "auth/logout" && method === "POST") {
       const response = jsonData(null);
       setSession(response, "", 0);
@@ -51,15 +91,25 @@ async function handle(request: NextRequest, context: Context) {
             "Vérifiez les informations saisies.",
         );
       if (path === "auth/register") {
-        await backendData("/api/auth/register", {
+        const registration = await backendData<{
+          verification_required: boolean;
+        }>("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...parsed.data,
+            language: request.headers.get("accept-language")?.startsWith("en")
+              ? "en"
+              : "fr",
             email:
               "email" in parsed.data ? parsed.data.email || null : undefined,
           }),
         });
+        if (registration.verification_required) {
+          const response = jsonData(null, 202);
+          setSession(response, "", 0);
+          return response;
+        }
       }
       const login = await backendData<{ token: string }>("/api/auth/login", {
         method: "POST",

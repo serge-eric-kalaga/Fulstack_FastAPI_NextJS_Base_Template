@@ -3,7 +3,7 @@ from api.configs.config import Setting
 from jose import jwt, JWTError
 from werkzeug.exceptions import Unauthorized, Forbidden
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends
+from fastapi import Depends, Request
 from typing import Annotated
 from api.database import get_db, User, Session
 from api.configs.logging import logResponse
@@ -36,6 +36,7 @@ def decode_token(token: str):
 
 
 def getPayload(
+    request: Request,
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -48,6 +49,9 @@ def getPayload(
         raise Forbidden("Session expirée")
     if "sub" in payload and payload["sub"] != str(user.id):
         raise Forbidden("Session expirée")
+    from api.services.email_verification import require_verified_email
+
+    require_verified_email(user, request.app.state.config)
     return payload
 
 

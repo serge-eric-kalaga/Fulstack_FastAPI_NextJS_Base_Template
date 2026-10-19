@@ -26,10 +26,14 @@ def utc_now():
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def consume_limit(db: Session, keys: list[tuple[str, int]], config) -> bool:
+def consume_limit(
+    db: Session, keys: list[tuple[str, int]], config, window_seconds: int | None = None
+) -> bool:
     """Compteurs SQL atomiques communs à tous les workers, pour adresses connues ou non."""
     now = utc_now()
-    cutoff = now - timedelta(seconds=config.PASSWORD_RESET_WINDOW_SECONDS)
+    cutoff = now - timedelta(
+        seconds=window_seconds or config.PASSWORD_RESET_WINDOW_SECONDS
+    )
     db.execute(
         delete(RecoveryRateLimit).where(
             RecoveryRateLimit.window_start < now - timedelta(days=2)
@@ -91,7 +95,13 @@ def change_password(db: Session, user: User, current: str, password: str):
     db.commit()
 
 
-def change_email(db: Session, user: User, email: str, current: str):
+def change_email(
+    db: Session,
+    user: User,
+    email: str,
+    current: str,
+    verification_required: bool = False,
+):
     """L’adresse de récupération exige le mot de passe et invalide les anciens liens et sessions."""
     verify_current_password(user, current)
     if user.email == email:
@@ -102,6 +112,10 @@ def change_email(db: Session, user: User, email: str, current: str):
             .where(User.id == user.id, User.auth_version == user.auth_version)
             .values(
                 email=email,
+                email_verified_at=None,
+                email_verification_required=verification_required,
+                email_verification_digest=None,
+                email_verification_expires_at=None,
                 auth_version=User.auth_version + 1,
                 password_reset_digest=None,
                 password_reset_expires_at=None,

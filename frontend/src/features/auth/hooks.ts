@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "./api";
 import type { CurrentUser } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 export const sessionKey = ["session"] as const;
 export const sessionChannel = "fullstack-session";
@@ -24,6 +25,7 @@ export function useSession() {
 /** Purger les données privées lors d’un changement de compte et synchroniser les onglets. */
 export function useAuthenticate(mode: "login" | "register") {
   const client = useQueryClient();
+  const { language } = useI18n();
   return useMutation({
     gcTime: 0,
     mutationFn: (input: {
@@ -34,8 +36,11 @@ export function useAuthenticate(mode: "login" | "register") {
     }) =>
       mode === "login"
         ? authApi.login(input)
-        : authApi.register({ ...input, telephone: input.telephone || "" }),
-    onSuccess: async (user: CurrentUser) => {
+        : authApi.register(
+            { ...input, telephone: input.telephone || "" },
+            language,
+          ),
+    onSuccess: async (user: CurrentUser | null) => {
       await client.cancelQueries();
       client.removeQueries({
         predicate: (query) => query.queryKey[0] !== "session",

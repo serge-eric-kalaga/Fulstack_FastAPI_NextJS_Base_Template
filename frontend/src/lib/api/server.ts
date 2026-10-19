@@ -154,6 +154,7 @@ export function browserUser(user: CurrentUser): CurrentUser {
   return {
     username: user.username,
     email: user.email,
+    email_verified_at: user.email_verified_at,
     telephone: user.telephone,
     last_login_at: user.last_login_at,
     profile_photo_url: user.profile_photo_url

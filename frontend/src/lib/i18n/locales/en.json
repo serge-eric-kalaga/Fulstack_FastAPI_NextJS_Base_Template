@@ -178,5 +178,21 @@
   "Adresse e-mail indisponible.": "Email address unavailable.",
   "Trop de tentatives. Réessayez plus tard.": "Too many attempts. Please try again later.",
   "Identifiant ou adresse e-mail indisponible": "Username or email address unavailable",
-  "La nouvelle adresse doit être différente.": "The new email address must be different."
+  "La nouvelle adresse doit être différente.": "The new email address must be different.",
+  "Confirmez votre adresse e-mail avant de vous connecter.": "Confirm your email address before signing in.",
+  "Une adresse e-mail est requise pour confirmer votre compte.": "An email address is required to confirm your account.",
+  "Compte créé. Consultez votre boîte e-mail pour confirmer votre adresse avant de vous connecter.": "Account created. Check your inbox to confirm your email before signing in.",
+  "Confirmez votre adresse e-mail pour activer votre compte.": "Confirm your email address to activate your account.",
+  "Renvoyer le lien de confirmation": "Resend confirmation link",
+  "Confirmer l’adresse e-mail": "Confirm email address",
+  "Confirmer votre adresse e-mail.": "Confirm your email address.",
+  "Confirmer mon adresse": "Confirm my email",
+  "Adresse e-mail confirmée. Vous pouvez maintenant vous connecter.": "Email confirmed. You can now sign in.",
+  "Consultez aussi vos courriers indésirables. Vous pouvez demander un nouveau lien ci-dessous.": "Also check your spam folder. You can request a new link below.",
+  "Si une confirmation est nécessaire, vous recevrez un nouveau lien par e-mail.": "If confirmation is needed, you will receive a new link by email.",
+  "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.": "The confirmation link is invalid or has expired. Request a new link.",
+  "Cliquez pour confirmer l’adresse associée à votre compte.": "Click to confirm the email address associated with your account.",
+  "E-MAIL · MODULE DU TEMPLATE": "EMAIL · TEMPLATE MODULE",
+  "Une vérification optionnelle, prête à intégrer aux inscriptions de votre projet.": "Optional email verification, ready to integrate into your project’s registration flow.",
+  "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter.": "Email saved. If confirmation is required, check your inbox before signing in again."
 }

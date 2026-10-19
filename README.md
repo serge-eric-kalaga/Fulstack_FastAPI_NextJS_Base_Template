@@ -433,7 +433,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **49 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **58 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
@@ -474,7 +474,7 @@ Pour étendre les traductions, compléter les catalogues de `frontend/src/lib/i1
 
 ## Mots de passe et récupération par e-mail
 
-L’inscription accepte une adresse e-mail facultative. Pour un compte existant, l’ajouter depuis `/profil` en confirmant le mot de passe actuel. Une adresse unique est normalisée en minuscules ; elle reste privée. Son association n’est pas présentée comme une vérification de boîte mail : l’accès à la boîte est prouvé lors de l’utilisation du lien de récupération.
+Lorsque `EMAIL_VERIFICATION_ENABLED=false`, l’inscription accepte une adresse e-mail facultative. Pour un compte existant, l’ajouter depuis `/profil` en confirmant le mot de passe actuel. Une adresse unique est normalisée en minuscules ; elle reste privée. Son association seule ne confirme pas la boîte mail. Le statut `email_verified_at` est renseigné uniquement par le parcours de confirmation décrit ci-dessous.
 
 Le profil propose un formulaire avec mot de passe actuel, nouveau mot de passe et confirmation. Après succès, toutes les sessions et tous les liens en attente sont révoqués, puis le frontend redirige vers la connexion. La mise à jour de l’adresse de récupération exige aussi le mot de passe actuel et une reconnexion. Les routes historiques de modification/suppression d’utilisateur sont limitées au compte connecté et ne permettent plus de modifier un mot de passe.
 
@@ -499,4 +499,35 @@ En cas d’échec SMTP, la réponse publique reste générique et le nouveau jet
 
 Routes publiques ajoutées : `POST /api/auth/forgot-password` et `POST /api/auth/reset-password`. Les contrats détaillés sont visibles dans Swagger. Les modèles d’e-mail sont dans `backend/api/html/email/password_reset.html`, `password_changed.html` et `recovery_email_changed.html`. Une modification de l’adresse de récupération notifie son ancienne adresse, si elle existe.
 
-Validation : 49 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
+Validation : 58 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
+
+### Confirmation optionnelle de l’adresse e-mail
+
+Le template peut exiger une confirmation par e-mail avant la première connexion. La configuration appartient uniquement au fichier **`.env.dev` à la racine** ; aucune variable `NEXT_PUBLIC_*` supplémentaire n’est nécessaire. Le frontend consulte `GET /api/auth/config` via son proxy pour adapter l’inscription au réglage du backend.
+
+| Variable | Valeur par défaut et rôle |
+| --- | --- |
+| `EMAIL_VERIFICATION_ENABLED` | `false` ; mettre `true` pour exiger un e-mail et sa confirmation à l’inscription |
+| `EMAIL_VERIFICATION_EXPIRE_MINUTES` | `60` ; durée d’un lien, entre 1 et 1 440 minutes |
+| `EMAIL_VERIFICATION_WINDOW_SECONDS` | `900` ; fenêtre des limites d’envoi, entre 60 et 86 400 secondes |
+| `EMAIL_VERIFICATION_EMAIL_LIMIT` | `3` ; envois par adresse et par fenêtre, inscription comprise |
+| `EMAIL_VERIFICATION_IP_LIMIT` | `30` ; envois par IP vue par FastAPI et par fenêtre |
+
+Renseigner aussi `FRONTEND_URL` (origine publique de confiance) et les paramètres SMTP décrits dans la section récupération. Après modification du fichier d’environnement :
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose up -d --force-recreate backend
+```
+
+La migration additive `0003_email_verification` ajoute la date de confirmation, l’exigence par compte et le hash/expiration du jeton. **Les comptes existants ne sont pas bloqués lors de l’activation** et ne sont pas marqués artificiellement comme confirmés. Un compte créé lorsque l’option était désactivée reste utilisable. Un compte créé sous l’option active reste en attente tant qu’il n’a pas confirmé son adresse ; désactiver l’option autorise temporairement sa connexion, puis la réactiver rétablit cette exigence.
+
+En mode actif, l’inscription crée le compte sans session et affiche un écran invitant à consulter sa messagerie. La connexion classique, celle de Swagger et les routes privées refusent l’accès aux comptes en attente. Un changement d’adresse depuis le profil efface l’ancienne confirmation, révoque les sessions et envoie un lien à la nouvelle adresse. En mode désactivé, le parcours habituel reste disponible sans e-mail obligatoire ni envoi de confirmation.
+
+Le lien ouvre `/confirmer-email#token=...`. Son secret aléatoire de 256 bits est retiré de l’URL et conservé en mémoire ; seul son SHA-256 est enregistré en base. **Le bouton de confirmation effectue un POST explicite** : ouvrir le lien ou le prévisualiser ne consomme pas le jeton. Un renvoi remplace le lien précédent. L’expiration, l’usage unique et les requêtes concurrentes sont contrôlés en base. Une confirmation invalide également les anciennes sessions et demandes de réinitialisation ; elle ne connecte pas automatiquement le compte. Un reset du mot de passe ne contourne pas l’obligation de confirmation.
+
+Le renvoi est accessible après inscription ou depuis le lien **Renvoyer le lien de confirmation** sur `/connexion`. `POST /api/auth/resend-verification` retourne toujours la même réponse `202`, pour une adresse inconnue, déjà confirmée, limitée ou si l’option est désactivée. Les limites utilisent des clés HMAC sans e-mail/IP en clair et sont partagées entre workers SQL. Derrière le proxy Next, l’IP observée peut être commune aux visiteurs : calibrer cette limite globale et ne pas accepter des en-têtes d’IP fournis librement par les clients.
+
+Routes FastAPI : `GET /api/auth/config`, `POST /api/auth/resend-verification` (`email`, `language`) et `POST /api/auth/verify-email` (`token`). Le résultat de `POST /api/auth/register` inclut `verification_required`, sans JWT. Le proxy Next retourne `data: null` avec le statut `202` lorsque la confirmation est attendue, et conserve le profil/session habituel quand elle ne l’est pas. `email_verified_at` est visible uniquement dans le profil privé ; les hashes et expirations ne sont jamais sérialisés.
+
+Le modèle bilingue du message est `backend/api/html/email/email_verification.html`. Les tests de `backend/test/test_email_verification.py` couvrent les deux modes, les comptes existants, le renvoi, l’expiration, la concurrence, les limites, les pannes SMTP et les contournements par connexion Swagger, JWT ou reset. Les messages sont capturés localement pendant la recette ; un serveur SMTP fonctionnel reste nécessaire pour une livraison réelle.

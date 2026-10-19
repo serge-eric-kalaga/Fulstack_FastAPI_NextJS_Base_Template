@@ -126,3 +126,13 @@ def send_recovery_email_changed(receiver: str, language: str, app_name: str) -> 
         "Recovery email changed" if english else "Adresse de récupération modifiée"
     )
     return send_email(receiver, message, f"{app_name} — {subject}")
+
+
+def send_email_verification(receiver: str, link: str, minutes: int, language: str, app_name: str) -> bool:
+    """Envoyer un lien de confirmation, dans la langue du parcours d’inscription."""
+    english = language == "en"
+    message = env.get_template("email_verification.html").render(
+        app_name=app_name, link=link, minutes=minutes, english=english
+    )
+    subject = "Confirm your email address" if english else "Confirmez votre adresse e-mail"
+    return send_email(receiver, message, f"{app_name} — {subject}")

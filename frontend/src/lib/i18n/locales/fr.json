@@ -178,5 +178,21 @@
   "Adresse e-mail indisponible.": "Adresse e-mail indisponible.",
   "Trop de tentatives. Réessayez plus tard.": "Trop de tentatives. Réessayez plus tard.",
   "Identifiant ou adresse e-mail indisponible": "Identifiant ou adresse e-mail indisponible",
-  "La nouvelle adresse doit être différente.": "La nouvelle adresse doit être différente."
+  "La nouvelle adresse doit être différente.": "La nouvelle adresse doit être différente.",
+  "Confirmez votre adresse e-mail avant de vous connecter.": "Confirmez votre adresse e-mail avant de vous connecter.",
+  "Une adresse e-mail est requise pour confirmer votre compte.": "Une adresse e-mail est requise pour confirmer votre compte.",
+  "Compte créé. Consultez votre boîte e-mail pour confirmer votre adresse avant de vous connecter.": "Compte créé. Consultez votre boîte e-mail pour confirmer votre adresse avant de vous connecter.",
+  "Confirmez votre adresse e-mail pour activer votre compte.": "Confirmez votre adresse e-mail pour activer votre compte.",
+  "Renvoyer le lien de confirmation": "Renvoyer le lien de confirmation",
+  "Confirmer l’adresse e-mail": "Confirmer l’adresse e-mail",
+  "Confirmer votre adresse e-mail.": "Confirmer votre adresse e-mail.",
+  "Confirmer mon adresse": "Confirmer mon adresse",
+  "Adresse e-mail confirmée. Vous pouvez maintenant vous connecter.": "Adresse e-mail confirmée. Vous pouvez maintenant vous connecter.",
+  "Consultez aussi vos courriers indésirables. Vous pouvez demander un nouveau lien ci-dessous.": "Consultez aussi vos courriers indésirables. Vous pouvez demander un nouveau lien ci-dessous.",
+  "Si une confirmation est nécessaire, vous recevrez un nouveau lien par e-mail.": "Si une confirmation est nécessaire, vous recevrez un nouveau lien par e-mail.",
+  "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.": "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.",
+  "Cliquez pour confirmer l’adresse associée à votre compte.": "Cliquez pour confirmer l’adresse associée à votre compte.",
+  "E-MAIL · MODULE DU TEMPLATE": "E-MAIL · MODULE DU TEMPLATE",
+  "Une vérification optionnelle, prête à intégrer aux inscriptions de votre projet.": "Une vérification optionnelle, prête à intégrer aux inscriptions de votre projet.",
+  "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter.": "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter."
 }

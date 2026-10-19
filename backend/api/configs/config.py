@@ -26,6 +26,11 @@ class SETTINGS(BaseSettings):
     PASSWORD_RESET_WINDOW_SECONDS: int = Field(default=900, ge=60, le=86400)
     PASSWORD_RESET_EMAIL_LIMIT: int = Field(default=3, ge=1)
     PASSWORD_RESET_IP_LIMIT: int = Field(default=30, ge=1)
+    EMAIL_VERIFICATION_ENABLED: bool = False
+    EMAIL_VERIFICATION_EXPIRE_MINUTES: int = Field(default=60, ge=1, le=1440)
+    EMAIL_VERIFICATION_WINDOW_SECONDS: int = Field(default=900, ge=60, le=86400)
+    EMAIL_VERIFICATION_EMAIL_LIMIT: int = Field(default=3, ge=1)
+    EMAIL_VERIFICATION_IP_LIMIT: int = Field(default=30, ge=1)
     EMAIL_HOST: str | None = None
     EMAIL_DOMAIN: str | None = None
     EMAIL_PORT: str | None = None

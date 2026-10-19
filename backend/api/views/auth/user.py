@@ -2,6 +2,7 @@ from typing import Annotated
 from sqlalchemy.orm import Session
 from api.schemas.user import (
     UserModel,
+    RegistrationModel,
     UpdateUserModel,
     CreateUserModel,
     Response,
@@ -35,15 +36,35 @@ user_router = APIRouter(dependencies=[Depends(getPayload)], tags=["USER"])
 
 @auth_router.post(
     "/register",
-    response_model=Response[UserModel],
+    response_model=Response[RegistrationModel],
     tags=["AUTH"],
     dependencies=[Depends(invalidate_cache("users"))],
 )
-def create_user(user: CreateUserModel, db: DatabaseSession):
-    """Create new user"""
+def create_user(
+    user: CreateUserModel, request: Request, tasks: BackgroundTasks, db: DatabaseSession
+):
+    """Créer un compte ; en mode vérification, exiger l’e-mail et différer son accès."""
+    from api.services import email_verification as verification
 
-    new_user = userSVC.create_user(user, db)
-    return Response(data=new_user)
+    config = request.app.state.config
+    if config.EMAIL_VERIFICATION_ENABLED:
+        if not user.email:
+            raise HTTPException(
+                400, "Une adresse e-mail est requise pour confirmer votre compte."
+            )
+        if not verification.allow_request(db, request, str(user.email).lower(), config):
+            raise HTTPException(429, "Trop de tentatives. Réessayez plus tard.")
+    new_user = userSVC.create_user(user, db, config.EMAIL_VERIFICATION_ENABLED)
+    if config.EMAIL_VERIFICATION_ENABLED:
+        tasks.add_task(
+            verification.queue_confirmation_email, new_user.email, user.language, config
+        )
+    data = UserModel.model_validate(new_user, from_attributes=True).model_dump()
+    return Response(
+        data=RegistrationModel(
+            **data, verification_required=config.EMAIL_VERIFICATION_ENABLED
+        )
+    )
 
 
 @user_router.get(
@@ -128,8 +149,23 @@ def change_own_email(
         raise HTTPException(429, "Trop de tentatives. Réessayez plus tard.")
     previous_email = user.email
     passwordSVC.change_email(
-        db, user, str(body.email), body.current_password.get_secret_value()
+        db,
+        user,
+        str(body.email),
+        body.current_password.get_secret_value(),
+        request.app.state.config.EMAIL_VERIFICATION_ENABLED,
     )
+    if request.app.state.config.EMAIL_VERIFICATION_ENABLED:
+        from api.services.email_verification import queue_confirmation_email
+
+        tasks.add_task(
+            queue_confirmation_email,
+            user.email,
+            "en"
+            if request.headers.get("Accept-Language", "").startswith("en")
+            else "fr",
+            request.app.state.config,
+        )
     if previous_email:
         language = (
             "en"
