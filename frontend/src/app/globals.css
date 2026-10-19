@@ -106,6 +106,10 @@ svg {
   place-items: center;
 }
 .brand-word {
+  max-width: clamp(96px, 18vw, 240px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 23px;
   font-weight: 750;
   letter-spacing: -1.2px;
@@ -186,6 +190,10 @@ svg {
   font-size: 12px;
 }
 .site-footer > span:first-child {
+  max-width: min(240px, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 16px;
   letter-spacing: -0.5px;
   font-weight: bold;

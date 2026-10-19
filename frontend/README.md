@@ -280,3 +280,10 @@ La CI exécute les deux vérifications :
 Un oubli de régénération fait échouer la PR. `tests/api-contracts.ts`, inclus dans `npm run typecheck`, vérifie notamment que les champs obligatoires et les secrets `writeOnly` restent présents dans les entrées, que les corps inconnus sont refusés et que les paramètres de chemin sont requis. `npm run test:generated-api` couvre l’intégration HTTP, les erreurs multipart et l’isolation de deux comptes lors de vingt requêtes concurrentes. Les tests de parcours existants continuent à couvrir l’authentification, le profil et les photos.
 
 Les fichiers générés sont exclus d’ESLint, mais restent contrôlés par la génération et TypeScript. L’override npm ciblé de `js-yaml` dans le parseur Hey API corrige sa dépendance vulnérable ; le conserver jusqu’à ce que le parseur dépende lui-même d’une version corrigée. Références : [génération FastAPI](https://fastapi.tiangolo.com/fr/advanced/generate-clients/) et [instances personnalisées Hey API](https://heyapi.dev/docs/openapi/typescript/clients/fetch/#createclient).
+
+
+## Nom de l’application
+
+`NEXT_PUBLIC_APP_NAME`, défini dans `.env.dev` à la racine, personnalise la navbar, le pied de page, le lien d’accueil accessible et les titres des pages. La valeur par défaut est `Fullstack`. Elle est publique et intégrée au build Next.js ; ne pas y mettre de secret. Relancer le serveur de développement ou reconstruire le frontend après modification.
+
+La commande racine `python3 scripts/init_project.py --name "Ma Boutique"` prépare ce nom ainsi que la configuration backend, les secrets et les paramètres des services. Voir le README racine pour ses options et le démarrage Docker avec `--env-file .env.dev`.

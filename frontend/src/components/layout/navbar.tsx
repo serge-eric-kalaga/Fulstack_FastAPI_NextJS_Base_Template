@@ -1,6 +1,7 @@
 "use client";
 import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
+import { appName } from "@/lib/app-config";
 import { usePathname, useRouter } from "next/navigation";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
@@ -30,12 +31,17 @@ export function Navbar() {
         className="navbar page-shell"
         aria-label={t("Navigation principale")}
       >
-        <Link href="/" className="brand" aria-label={t("Fullstack, accueil")}>
+        <Link
+          href="/"
+          className="brand"
+          aria-label={t("{{name}}, accueil", { name: appName })}
+        >
           <span className="brand-mark">
             <Layers3 size={20} />
           </span>
           <span className="brand-word">
-            fullstack<span className="brand-dot">.</span>
+            {appName}
+            <span className="brand-dot">.</span>
           </span>
           <span className="brand-tag">{t("BASE TEMPLATE")}</span>
         </Link>

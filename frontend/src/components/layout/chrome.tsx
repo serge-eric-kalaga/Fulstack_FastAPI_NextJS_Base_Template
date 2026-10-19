@@ -1,4 +1,5 @@
 "use client";
+import { appName } from "@/lib/app-config";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/use-i18n";
 
@@ -14,7 +15,7 @@ export function Footer() {
   const { t } = useI18n();
   return (
     <footer className="site-footer page-shell">
-      <span>fullstack.</span>
+      <span>{appName}.</span>
       <p>{t("Une base réutilisable pour vos projets.")}</p>
       <span className="footer-stack">FASTAPI + NEXT.JS</span>
     </footer>
@@ -39,5 +40,7 @@ export function PageTitle() {
               : pathname === "/profil"
                 ? t("Mon profil")
                 : null;
-  return <title>{title ? `${title} · Fullstack` : "Fullstack Template"}</title>;
+  return (
+    <title>{title ? `${title} · ${appName}` : `${appName} Template`}</title>
+  );
 }

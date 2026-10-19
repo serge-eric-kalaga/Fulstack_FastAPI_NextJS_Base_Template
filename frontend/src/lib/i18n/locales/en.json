@@ -15,7 +15,6 @@
   "Des modules à réutiliser": "Reusable modules",
   "Des composants et services API à réutiliser pour développer vos prochaines fonctionnalités.": "Reuse components and API services to build your next features.",
   "Navigation principale": "Main navigation",
-  "Fullstack, accueil": "Fullstack, home",
   "BASE TEMPLATE": "STARTER TEMPLATE",
   "Chargement de la session…": "Loading session…",
   "Chargement de la session": "Loading session",
@@ -194,5 +193,6 @@
   "Cliquez pour confirmer l’adresse associée à votre compte.": "Click to confirm the email address associated with your account.",
   "E-MAIL · MODULE DU TEMPLATE": "EMAIL · TEMPLATE MODULE",
   "Une vérification optionnelle, prête à intégrer aux inscriptions de votre projet.": "Optional email verification, ready to integrate into your project’s registration flow.",
-  "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter.": "Email saved. If confirmation is required, check your inbox before signing in again."
+  "Adresse e-mail enregistrée. Si une confirmation est requise, consultez votre boîte e-mail avant de vous reconnecter.": "Email saved. If confirmation is required, check your inbox before signing in again.",
+  "{{name}}, accueil": "{{name}}, home"
 }

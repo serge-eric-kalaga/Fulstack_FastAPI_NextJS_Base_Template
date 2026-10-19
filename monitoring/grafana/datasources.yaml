@@ -10,8 +10,8 @@ datasources:
 - name: Database
   type: mysql
   url: mysql:3306
-  user: root
+  user: $GRAFANA_MYSQL_USER
   jsonData:
-    database: backend_template
+    database: $GRAFANA_MYSQL_DATABASE
   secureJsonData:
-    password: OuPfme15oAM1m1S8lqy1PQfxlYFlCnmPzyaloZ1Zw=
+    password: $GRAFANA_MYSQL_PASSWORD

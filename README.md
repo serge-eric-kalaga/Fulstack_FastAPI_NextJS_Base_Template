@@ -6,6 +6,7 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage rapide](#démarrage-rapide)
+- [Initialiser un projet](#initialiser-un-projet)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
 - [Développement local](#développement-local)
@@ -46,53 +47,22 @@ Les dépendances sont définies dans [package.json](frontend/package.json) et [p
 
 ### Préparer l’environnement
 
-Créer `.env.dev` à la racine avec les paramètres de l’application et des services. Exemple de configuration de développement à personnaliser :
+Avec Python 3.9 ou supérieur, initialiser une copie du template depuis sa racine :
 
-```dotenv
-APP_NAME=Fullstack
-ADMINS_EMAIL=admin@example.com
-SECRET_KEY=replace-with-a-random-secret
-JWT_SECRET=replace-with-another-random-secret
-ALGORITHM=HS256
-
-MYSQL_ROOT_PASSWORD=replace-root-password
-MYSQL_DATABASE=fullstack
-MYSQL_USER=fullstack
-MYSQL_PASSWORD=replace-app-password
-DATABASE_URL=mysql+pymysql://fullstack:replace-app-password@mysql:3306/fullstack
-
-REDIS_URL=redis://redis:6379/0
-REDIS_PREFIX=fullstack:dev:v1
-CACHE_ENABLED=true
-
-FRONTEND_URL=http://localhost:3000
-APP_ORIGIN=http://localhost:3000
-BACKEND_URL=http://127.0.0.1:8080
-EMAIL_VERIFICATION_ENABLED=false
-
-PMA_HOST=mysql
-PMA_PORT=3306
+```bash
+python3 scripts/init_project.py --name "Ma Boutique" --admin-email admin@example.com
 ```
 
-Utiliser des secrets distincts et aléatoires. Les identifiants de `DATABASE_URL` doivent correspondre à ceux de MySQL ; encoder les caractères réservés lorsqu’ils figurent dans une URL.
-
-Créer `.env.grafana` à la racine pour les identifiants Grafana :
-
-```dotenv
-GF_SECURITY_ADMIN_USER=admin
-GF_SECURITY_ADMIN_PASSWORD=replace-grafana-password
-```
-
-Configurer les sources de données dans [datasources.yaml](monitoring/grafana/datasources.yaml) pour qu’elles correspondent aux services utilisés.
+La commande crée `.env.dev`, `.env.test` et `.env.grafana` à la racine avec les paramètres et secrets nécessaires. Elle refuse de modifier une configuration existante. Voir les [options d’initialisation](#initialiser-un-projet).
 
 ### Lancer l’application
 
 Depuis la racine :
 
 ```bash
-docker compose config --quiet
-docker compose up -d --build
-docker compose exec -T backend uv run --frozen alembic upgrade head
+docker compose --env-file .env.dev config --quiet
+docker compose --env-file .env.dev up -d --build
+docker compose --env-file .env.dev exec -T backend uv run --frozen alembic upgrade head
 ```
 
 | Service | Adresse |
@@ -110,12 +80,48 @@ docker compose exec -T backend uv run --frozen alembic upgrade head
 MySQL et Redis sont accessibles sur le réseau Docker, sans port publié sur l’hôte.
 
 ```bash
-docker compose ps                          # État des services
-docker compose logs -f backend frontend     # Journaux
-docker compose down                        # Arrêt sans suppression des volumes
+docker compose --env-file .env.dev ps                          # État des services
+docker compose --env-file .env.dev logs -f backend frontend     # Journaux
+docker compose --env-file .env.dev down                        # Arrêt sans suppression des volumes
 ```
 
 Le Compose fournit un environnement de développement avec rechargement du code. Prévoir une configuration de déploiement adaptée pour la production.
+
+## Initialiser un projet
+
+La commande d’initialisation utilise uniquement la bibliothèque standard Python. Elle prépare la configuration d’un nouveau projet, sans installer de dépendances, démarrer de service ou modifier le code source.
+
+```bash
+# Nom affiché et destinataire des alertes
+python3 scripts/init_project.py --name "Ma Boutique" --admin-email admin@example.com
+
+# Identifiant technique explicite
+python3 scripts/init_project.py --name "Ma Boutique" --slug ma-boutique
+
+# Vérifier les paramètres et les fichiers prévus sans écrire de configuration
+python3 scripts/init_project.py --name "Ma Boutique" --dry-run
+```
+
+Sans `--name`, un terminal interactif demande le nom. `--directory` permet de désigner une autre copie du template. Le dossier doit contenir `docker-compose.yml`, `backend/` et `frontend/`.
+
+| Élément | Personnalisation |
+| --- | --- |
+| Identité | `APP_NAME` pour l’API/e-mails et `NEXT_PUBLIC_APP_NAME` pour la navbar, le pied de page et les titres |
+| Ressources Docker | `COMPOSE_PROJECT_NAME` dérivé du nom, par exemple `ma-boutique` |
+| MySQL | Base `ma_boutique`, compte applicatif et mots de passe générés |
+| Redis | Préfixes propres au projet et à l’environnement |
+| Tests | Base SQLite dédiée dans `backend/.test.db`, cache désactivé et secrets distincts |
+| Grafana | Mot de passe administrateur généré et source MySQL liée au compte applicatif |
+
+Les secrets applicatifs, JWT, MySQL et Grafana utilisent des valeurs aléatoires indépendantes. Ils sont écrits dans les fichiers d’environnement avec des permissions `0600` sur les systèmes POSIX et ne sont jamais affichés dans le terminal. L’accès Grafana utilise le compte `admin` et le mot de passe de `.env.grafana`.
+
+Si l’un des trois fichiers existe, toute l’opération est refusée : aucune fusion, rotation ou réécriture automatique des secrets. Une erreur d’écriture annule les fichiers créés par cette exécution. Pour adapter une instance configurée, modifier directement ses fichiers racine en conservant ses secrets et identifiants de base.
+
+Le nom affiché accepte les lettres Unicode et les espaces. Le slug doit contenir au maximum 48 lettres minuscules, chiffres ou tirets et commencer par une lettre ; utiliser `--slug` si le nom ne permet pas d’en dériver un. Les ports des services restent ceux du Compose et doivent être adaptés pour faire tourner plusieurs projets simultanément.
+
+Utiliser `docker compose --env-file .env.dev …` pour que Compose lise aussi `COMPOSE_PROJECT_NAME` et les variables d’interpolation. Cette identité détermine les noms de ses réseaux et volumes. Le nom public du frontend est intégré lors du build Next.js : relancer le serveur de développement, ou reconstruire le frontend après modification de `NEXT_PUBLIC_APP_NAME`.
+
+L’envoi d’e-mails demande de renseigner SMTP dans `.env.dev`. La confirmation d’adresse est désactivée par défaut et peut être activée avec `EMAIL_VERIFICATION_ENABLED=true` après cette configuration.
 
 ## Configuration
 
@@ -129,11 +135,17 @@ Tous les fichiers d’environnement restent **à la racine**. Ne pas en créer d
 
 Les fichiers `.env` et `.env.*` sont ignorés par Git. Les variantes `.env.example` et `.env.*.example` peuvent servir de modèles versionnés.
 
+### Grafana
+
+Dans `.env.grafana`, définir `GF_SECURITY_ADMIN_USER` et `GF_SECURITY_ADMIN_PASSWORD` pour l’administration. La source MySQL utilise `GRAFANA_MYSQL_USER`, `GRAFANA_MYSQL_DATABASE` et `GRAFANA_MYSQL_PASSWORD` : leurs valeurs doivent correspondre à `MYSQL_USER`, `MYSQL_DATABASE` et `MYSQL_PASSWORD` dans `.env.dev`. L’initialiseur prépare ces correspondances ; une configuration manuelle doit aussi les renseigner.
+
 ### Application et transport
 
 | Variable | Rôle ou valeur par défaut |
 | --- | --- |
 | `APP_NAME` | Nom de l’application, requis |
+| `NEXT_PUBLIC_APP_NAME` | Nom public affiché par le frontend ; défaut `Fullstack` |
+| `COMPOSE_PROJECT_NAME` | Identité des ressources Docker, lue avec `--env-file .env.dev` |
 | `ADMINS_EMAIL` | Adresses des administrateurs séparées par des virgules, requis |
 | `SECRET_KEY` | Secret applicatif, requis |
 | `JWT_SECRET`, `ALGORITHM` | Signature des JWT, requis |
@@ -147,7 +159,7 @@ Les fichiers `.env` et `.env.*` sont ignorés par Git. Les variantes `.env.examp
 Après modification des variables injectées par Compose, recréer les services concernés :
 
 ```bash
-docker compose up -d --force-recreate backend frontend
+docker compose --env-file .env.dev up -d --force-recreate backend frontend
 ```
 
 ### Cache et fichiers
@@ -304,9 +316,9 @@ Après ajout ou modification d’une route ou d’un schéma :
 
 ```bash
 # Depuis la racine, avec les services Docker démarrés
-docker compose exec -T backend uv run --frozen python scripts/export_openapi.py
-docker compose exec -T frontend npm run api:generate
-docker compose exec -T frontend npm run typecheck
+docker compose --env-file .env.dev exec -T backend uv run --frozen python scripts/export_openapi.py
+docker compose --env-file .env.dev exec -T frontend npm run api:generate
+docker compose --env-file .env.dev exec -T frontend npm run typecheck
 ```
 
 Sans Docker :
@@ -380,17 +392,17 @@ Alembic utilise `DATABASE_URL` et les modèles SQLAlchemy. Les migrations se tro
 Pour modifier le schéma avec Docker, arrêter le backend avant de modifier les modèles afin que l’initialisation automatique des tables ne masque pas une nouvelle table :
 
 ```bash
-docker compose stop backend
+docker compose --env-file .env.dev stop backend
 # Modifier les modèles, puis générer la révision.
-docker compose run --rm --no-deps backend uv run --frozen alembic revision --autogenerate -m "Ajouter une fonctionnalité"
+docker compose --env-file .env.dev run --rm --no-deps backend uv run --frozen alembic revision --autogenerate -m "Ajouter une fonctionnalité"
 ```
 
 Relire la révision générée, puis l’appliquer :
 
 ```bash
-docker compose run --rm --no-deps backend uv run --frozen alembic upgrade head
-docker compose run --rm --no-deps backend uv run --frozen alembic check
-docker compose up -d backend
+docker compose --env-file .env.dev run --rm --no-deps backend uv run --frozen alembic upgrade head
+docker compose --env-file .env.dev run --rm --no-deps backend uv run --frozen alembic check
+docker compose --env-file .env.dev up -d backend
 ```
 
 Sans Docker, depuis `backend/` :
@@ -404,6 +416,17 @@ uv run --env-file ../.env.dev alembic check
 Versionner les révisions avec les modèles. Utiliser `alembic current` pour consulter la révision appliquée, `alembic history` pour les révisions disponibles et `alembic downgrade -1` pour annuler la dernière révision sur une base de test, selon les opérations de son `downgrade()`.
 
 ## Tests et qualité
+
+### Commande d’initialisation
+
+Depuis la racine, sans dépendance externe :
+
+```bash
+python3 -m unittest discover -s scripts/tests -v
+```
+
+Les tests utilisent des dossiers temporaires et couvrent la cohérence des configurations, les secrets, les permissions, la protection des fichiers existants, le mode simulation et l’annulation en cas d’erreur.
+
 
 ### Backend
 
@@ -449,7 +472,7 @@ Le workflow [ci.yml](.github/workflows/ci.yml) s’exécute sur les pull request
 
 | Job | Contrôles |
 | --- | --- |
-| `Backend (sqlite)` | Ruff, Pytest avec Redis, export OpenAPI et migrations SQLite |
+| `Backend (sqlite)` | Initialisation du template, Ruff, Pytest avec Redis, export OpenAPI et migrations SQLite |
 | `Backend (mysql)` | Mêmes contrôles avec MySQL et vérification des migrations MySQL |
 | `Frontend` | Installation verrouillée, ESLint, TypeScript, traductions, contrat/SDK, build de production et tests HTTP |
 
@@ -486,6 +509,6 @@ npm ci
 Versionner ensemble les manifestes et leurs fichiers de verrouillage. Dans Docker, reconstruire le service après un changement de dépendances. Pour le frontend, synchroniser aussi le volume `node_modules` :
 
 ```bash
-docker compose run --rm --no-deps frontend npm ci
-docker compose up -d --no-deps --build frontend
+docker compose --env-file .env.dev run --rm --no-deps frontend npm ci
+docker compose --env-file .env.dev up -d --no-deps --build frontend
 ```

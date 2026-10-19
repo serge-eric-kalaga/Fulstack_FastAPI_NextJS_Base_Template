@@ -100,6 +100,9 @@ jobs:
         run: uv run --frozen python scripts/export_openapi.py --check
       - name: Lint Python
         run: uv run --frozen ruff check --config pyproject.toml . ../scripts
+      # La commande d’initialisation se teste sans Docker, base ni dépendance externe.
+      - name: Tests de l’initialisation du template
+        run: uv run --frozen python -m unittest discover -s ../scripts/tests -v
       - name: Tests backend et intégration Redis
         run: uv run --frozen pytest -q
       # Partir du schéma de référence, appliquer les migrations et comparer aux modèles.

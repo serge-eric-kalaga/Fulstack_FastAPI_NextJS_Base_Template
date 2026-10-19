@@ -125,7 +125,6 @@ services:
 
   log_viewer:
     image: httpd:latest
-    container_name: log_viewer
     restart: always
     ports:
       - "7777:80"
