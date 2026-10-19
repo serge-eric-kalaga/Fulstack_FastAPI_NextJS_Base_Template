@@ -1,6 +1,6 @@
 # Fullstack FastAPI + Next.js Template
 
-Base réutilisable pour des applications avec une API **FastAPI** et un frontend **Next.js**. Le backend fournit l’authentification JWT, la gestion des utilisateurs, Socket.IO, les e-mails et les métriques. Le frontend propose une navbar responsive, l’inscription, la connexion et un espace personnel avec téléphone, photo et dernière connexion.
+Base réutilisable pour des applications avec une API **FastAPI** et un frontend **Next.js**. Le backend fournit l’authentification JWT, la gestion des utilisateurs, Socket.IO, les e-mails et les métriques. Le frontend propose une navbar responsive, l’inscription, la connexion et un espace personnel avec téléphone, photo et dernière connexion. Il inclut le français et l’anglais, ainsi que les thèmes clair, sombre et système.
 
 ## Sommaire
 
@@ -447,6 +447,9 @@ cd frontend
 npm run lint
 npm run typecheck
 npm run build
+npm run test:i18n
+# Frontend et backend démarrés :
+npm run test:api
 npm audit
 ```
 
@@ -455,3 +458,11 @@ Dernières vérifications réalisées : lint, typage, build de production en con
 ### Session frontend
 
 TanStack Query partage le compte connecté et les données serveur ; React Hook Form et Zod gèrent les formulaires. Les appels navigateur passent par Next.js, qui conserve le JWT dans un cookie HttpOnly, SameSite=Lax, et communique avec FastAPI via `BACKEND_URL`. Les écritures vérifient l’origine et les réponses privées utilisent `no-store`. En production HTTPS, définir `APP_ORIGIN` avec l’origine publique exacte et conserver le cookie Secure. Voir le [README frontend](frontend/README.md) pour étendre ces services et lancer `npm run test:api`.
+
+## Étendre le template frontend
+
+Le [guide frontend](frontend/README.md#ajouter-une-fonctionnalité-avec-les-services-api-et-tanstack-query) décrit l’ajout d’un module de projets : route FastAPI et permissions, route Next.js autorisée, service HTTP typé, hooks Query, formulaire et invalidation du cache. Le client `apiRequest` centralise le transport ; TanStack Query gère les données serveur, React Hook Form les formulaires et React l’état local. Les changements de compte purgent les données privées du cache.
+
+La navbar permet de choisir le **français ou l’anglais**, ainsi que le thème **clair, sombre ou système**. Les préférences sont mémorisées dans le navigateur et synchronisées entre onglets. i18next traduit les écrans, les libellés, les validations et les dates ; next-themes applique le thème avant hydratation. Ces préférences ne passent pas par l’API. Les routes restent identiques dans les deux langues et les métadonnées initiales restent françaises.
+
+Pour étendre les traductions, compléter les catalogues de `frontend/src/lib/i18n/locales/`. Pour un nouveau composant, utiliser les variables CSS de la palette dans `globals.css` et vérifier les deux thèmes. Voir les sections [internationalisation](frontend/README.md#internationalisation-français--anglais) et [thèmes](frontend/README.md#thèmes-clair-sombre-et-système) pour les conventions et exemples. Les fichiers d’environnement restent exclusivement à la racine.

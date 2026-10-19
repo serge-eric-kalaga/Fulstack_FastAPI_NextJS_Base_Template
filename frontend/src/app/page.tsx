@@ -1,3 +1,5 @@
+"use client";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import {
   ArrowDownRight,
   Fingerprint,
@@ -8,28 +10,31 @@ import {
 import { HomeActions } from "@/features/auth/home-actions";
 
 export default function Home() {
+  const { t } = useI18n();
   return (
     <main className="page-shell home-page">
       <section className="hero">
         <div className="hero-copy">
           <span className="eyebrow">
             <span className="status-dot" />
-            TEMPLATE FULLSTACK · FASTAPI + NEXT.JS
+            {t("TEMPLATE FULLSTACK · FASTAPI + NEXT.JS")}
           </span>
           <h1>
-            Démarrez votre projet fullstack.
+            {t("Démarrez votre projet fullstack.")}
             <br />
-            <em>Une base prête à personnaliser.</em>
+            <em>{t("Une base prête à personnaliser.")}</em>
           </h1>
           <p>
-            Un template FastAPI et Next.js avec authentification, gestion du profil
-            et communication API intégrées. Adaptez cette base aux besoins de
-            votre application.
+            {t(
+              "Un template FastAPI et Next.js avec authentification, gestion du profil et communication API intégrées. Adaptez cette base aux besoins de votre application.",
+            )}
           </p>
           <HomeActions />
           <div className="hero-caption">
             <span className="caption-line" />
-            Explorez les modules inclus, puis ajoutez vos fonctionnalités.
+            {t(
+              "Explorez les modules inclus, puis ajoutez vos fonctionnalités.",
+            )}
           </div>
         </div>
         <div className="hero-art" aria-hidden="true">
@@ -44,39 +49,53 @@ export default function Home() {
               <Sparkles size={38} strokeWidth={1.4} />
             </span>
             <span>
-              Un socle réutilisable.
+              {t("Un socle réutilisable.")}
               <br />
-              <strong>Votre application à construire.</strong>
+              <strong>{t("Votre application à construire.")}</strong>
             </span>
             <ArrowDownRight size={23} />
           </div>
           <span className="art-cross cross-one">+</span>
           <span className="art-cross cross-two">+</span>
-          <span className="art-coordinate">01 — PERSONNALISEZ CE TEMPLATE</span>
+          <span className="art-coordinate">
+            {t("01 — PERSONNALISEZ CE TEMPLATE")}
+          </span>
         </div>
       </section>
-      <section className="feature-row" aria-label="Les essentiels du template">
+      <section
+        className="feature-row"
+        aria-label={t("Les essentiels du template")}
+      >
         <article>
           <Fingerprint size={23} />
           <div>
-            <h2>Authentification intégrée</h2>
-            <p>Testez les parcours de création de compte, de connexion et de déconnexion.</p>
+            <h2>{t("Authentification intégrée")}</h2>
+            <p>
+              {t(
+                "Testez les parcours de création de compte, de connexion et de déconnexion.",
+              )}
+            </p>
           </div>
         </article>
         <article>
           <UserRound size={23} />
           <div>
-            <h2>Gestion du profil</h2>
-            <p>Un module de départ pour gérer les informations et la photo du compte.</p>
+            <h2>{t("Gestion du profil")}</h2>
+            <p>
+              {t(
+                "Un module de départ pour gérer les informations et la photo du compte.",
+              )}
+            </p>
           </div>
         </article>
         <article>
           <Layers3 size={23} />
           <div>
-            <h2>Des modules à réutiliser</h2>
+            <h2>{t("Des modules à réutiliser")}</h2>
             <p>
-              Des composants et services API à réutiliser pour développer vos
-              prochaines fonctionnalités.
+              {t(
+                "Des composants et services API à réutiliser pour développer vos prochaines fonctionnalités.",
+              )}
             </p>
           </div>
         </article>

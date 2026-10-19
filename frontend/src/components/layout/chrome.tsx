@@ -1,0 +1,37 @@
+"use client";
+import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n/use-i18n";
+
+export function SkipLink() {
+  const { t } = useI18n();
+  return (
+    <a className="skip-link" href="#page-content">
+      {t("Aller au contenu")}
+    </a>
+  );
+}
+export function Footer() {
+  const { t } = useI18n();
+  return (
+    <footer className="site-footer page-shell">
+      <span>fullstack.</span>
+      <p>{t("Une base réutilisable pour vos projets.")}</p>
+      <span className="footer-stack">FASTAPI + NEXT.JS</span>
+    </footer>
+  );
+}
+
+/** Un seul titre React, localisé sans concurrence avec les métadonnées streamées. */
+export function PageTitle() {
+  const { t } = useI18n();
+  const pathname = usePathname();
+  const title =
+    pathname === "/connexion"
+      ? t("Se connecter")
+      : pathname === "/inscription"
+        ? t("Créer un compte")
+        : pathname === "/profil"
+          ? t("Mon profil")
+          : null;
+  return <title>{title ? `${title} · Fullstack` : "Fullstack Template"}</title>;
+}

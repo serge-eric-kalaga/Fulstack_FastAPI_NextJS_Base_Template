@@ -71,3 +71,96 @@ Un override ciblé remplace `fast-glob` par `tinyglobby@0.2.17` uniquement dans 
 ## Surveillance en développement
 
 L’import Tailwind de `src/app/globals.css` limite la détection des classes à `src` avec `source("..")`. Conserver cette limite : une détection depuis la racine du frontend inclut des fichiers techniques générés et peut entraîner des recompilations et rechargements répétés. Après modification de ce périmètre, redémarrer le service frontend pour réinitialiser ses dépendances de surveillance.
+
+## Ajouter une fonctionnalité avec les services API et TanStack Query
+
+Le flux de référence est : **composant → hook Query → service métier → client HTTP → route Next.js → FastAPI**. Les composants ne lisent jamais le JWT et ne construisent pas l’URL interne du backend.
+
+Exemple pour un module de projets (les routes `/projects` ci-dessous sont des exemples à implémenter, elles ne sont pas fournies par le template) :
+
+1. Créer les modèles, schémas et routes FastAPI, avec authentification et autorisations sur les projets. Si le schéma change, générer et appliquer une migration Alembic.
+2. Ajouter explicitement les branches `GET /api/projects` et `POST /api/projects` à `src/app/api/[...path]/route.ts`. Utiliser `requireSession(request)` puis `backendData` avec le token côté serveur. La vérification d’origine est déjà appliquée aux écritures ; utiliser `readJson` et valider le corps avant de transmettre la demande. Aucun proxy vers une URL arbitraire.
+3. Définir un service typé dans `src/features/projects/api.ts` :
+
+```ts
+import { apiRequest } from "@/lib/api/client";
+export type Project = { id: number; name: string };
+export const projectsApi = {
+  list: (signal?: AbortSignal) => apiRequest<Project[]>("/projects", { signal }),
+  create: (body: { name: string }) =>
+    apiRequest<Project>("/projects", { method: "POST", body }),
+};
+```
+
+4. Ajouter des hooks dans `src/features/projects/hooks.ts` :
+
+```ts
+"use client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/features/auth/hooks";
+import { projectsApi } from "./api";
+
+const projectKeys = { all: ["projects"] as const };
+export function useProjects() {
+  const session = useSession();
+  return useQuery({
+    queryKey: [...projectKeys.all, session.data?.username],
+    queryFn: ({ signal }) => projectsApi.list(signal),
+    enabled: !!session.data,
+  });
+}
+export function useCreateProject() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: projectsApi.create,
+    onSuccess: () => client.invalidateQueries({ queryKey: projectKeys.all }),
+  });
+}
+```
+
+5. Dans un composant client, appeler `useProjects()` et afficher explicitement chargement, erreur, liste vide et résultat. Pour un formulaire, réutiliser `Field`, React Hook Form et un schéma Zod, puis déclencher `useCreateProject().mutate(values)`. Désactiver la soumission pendant l’écriture ; afficher les erreurs et la confirmation dans un élément accessible (`role="alert"` / `role="status"`).
+
+Les clés Query identifient les données et leurs filtres : ajouter l’identifiant du compte, la pagination et les filtres à la clé si nécessaires. Ne pas copier les résultats Query dans `useState`. Après mutation, invalider les listes concernées ou remplacer un détail avec `setQueryData`. Les changements de compte et la déconnexion purgent déjà les requêtes autres que `session` ; les permissions restent contrôlées côté API.
+
+| Type d’état | Outil et exemple |
+|---|---|
+| Données serveur | TanStack Query : session, projets, listes paginées |
+| Valeurs et erreurs de formulaire | React Hook Form + Zod |
+| État local éphémère | React `useState` : ouverture d’un panneau |
+| Préférences d’interface | i18next pour la langue, next-themes pour le thème |
+
+Une nouvelle route protégée doit gérer l’absence de session comme `/profil` et continuer à vérifier les droits dans FastAPI. Ne pas utiliser une redirection client comme seule protection.
+
+## Internationalisation (français / anglais)
+
+Le sélecteur de la navbar change la langue sans navigation. `LanguageProvider` crée une instance i18next par arbre React ; le rendu initial est français, puis la préférence du navigateur est restaurée après hydratation. Les routes restent `/connexion`, `/inscription` et `/profil` dans toutes les langues : cette version traduit l’interface, sans routes SEO localisées.
+
+Les catalogues `src/lib/i18n/locales/fr.json` et `en.json` utilisent les phrases françaises comme clés (`keySeparator: false`, `nsSeparator: false`). Conserver exactement les mêmes clés et variables d’interpolation dans chaque langue. Exemple dans un composant client :
+
+```tsx
+"use client";
+import { useI18n } from "@/lib/i18n/use-i18n";
+
+export function FeatureIntro() {
+  const { t } = useI18n();
+  return <p>{t("Une nouvelle fonctionnalité à traduire.")}</p>;
+}
+```
+
+Utiliser `useI18n` dans les composants : cet adaptateur conserve un snapshot français pendant l’hydratation de chaque segment, puis applique la préférence restaurée sans divergence serveur/client. Ajouter le texte aux deux catalogues avant utilisation. Pour une valeur dynamique : `t("Bonjour, {{username}}", { username })`, sans concaténer une phrase à traduire. Traduire également les libellés accessibles et les messages de validation ; les messages Zod restent des clés et sont traduits lors de l’affichage. Les erreurs connues du proxy sont traduites côté interface ; une nouvelle erreur métier doit recevoir une traduction dans les catalogues. Les réponses backend restent dans leur langue d’origine.
+
+Pour ajouter une troisième langue, créer son catalogue, l’enregistrer dans `LanguageProvider`, étendre `supportedLanguages` / `isLanguage`, ajouter l’option dans `Preferences` et adapter le formatage dans `lib/date.ts`. La préférence `fullstack-language-v1` est mémorisée dans localStorage et synchronisée entre onglets. Si le stockage est bloqué, le sélecteur continue de fonctionner dans l’onglet courant. L’attribut HTML `lang`, le titre de l’onglet et les dates suivent la langue sélectionnée ; les métadonnées initiales restent françaises.
+
+## Thèmes clair, sombre et système
+
+Le sélecteur de la navbar utilise next-themes. Le choix est mémorisé dans `fullstack-theme-v1` et synchronisé entre onglets ; par défaut, le thème suit les préférences système. Le script de next-themes applique `data-theme` sur `<html>` avant l’hydratation. `suppressHydrationWarning` est limité à cet élément dont les attributs sont modifiés par les préférences.
+
+Pour un nouveau composant, utiliser les variables `--background`, `--surface`, `--ink`, `--muted`, `--line`, `--green` et `--soft`. Le thème sombre redéfinit cette palette dans `globals.css`. Éviter les fonds ou textes blancs/noirs fixes ; vérifier les états de focus, erreur, désactivation, menu et formulaire dans les deux thèmes. Les préférences d’affichage ne déclenchent pas d’appel API et ne sont pas effacées à la déconnexion.
+
+```bash
+npm run test:i18n
+```
+
+Ce contrôle vérifie la parité des catalogues, les interpolations et le formatage localisé des dates. Compléter par une recette navigateur pour le changement de langue, le thème système, la persistance au rechargement, l’accessibilité clavier et l’affichage mobile.
+
+Références : [react-i18next](https://react.i18next.com/latest/using-with-hooks), [next-themes](https://github.com/pacocoursey/next-themes).

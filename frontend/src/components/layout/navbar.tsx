@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -12,10 +13,12 @@ import {
   UserRound,
 } from "lucide-react";
 import { useLogout, useSession } from "@/features/auth/hooks";
+import { Preferences } from "./preferences";
 import { Avatar } from "@/components/ui/avatar";
 import { formatConnection } from "@/lib/date";
 
 export function Navbar() {
+  const { t, language } = useI18n();
   const session = useSession();
   const logout = useLogout();
   const router = useRouter();
@@ -23,34 +26,38 @@ export function Navbar() {
   const user = session.data;
   return (
     <header className="site-header">
-      <nav className="navbar page-shell" aria-label="Navigation principale">
-        <Link href="/" className="brand" aria-label="Fullstack, accueil">
+      <nav
+        className="navbar page-shell"
+        aria-label={t("Navigation principale")}
+      >
+        <Link href="/" className="brand" aria-label={t("Fullstack, accueil")}>
           <span className="brand-mark">
             <Layers3 size={20} />
           </span>
           <span className="brand-word">
             fullstack<span className="brand-dot">.</span>
           </span>
-          <span className="brand-tag">BASE TEMPLATE</span>
+          <span className="brand-tag">{t("BASE TEMPLATE")}</span>
         </Link>
+        <Preferences />
         <div className="nav-actions">
           {session.isPending ? (
             <div className="nav-skeleton skeleton" role="status">
-              <span className="sr-only">Chargement de la session…</span>
+              <span className="sr-only">{t("Chargement de la session…")}</span>
             </div>
           ) : session.isError ? (
             <button
               className="button button-quiet"
               onClick={() => void session.refetch()}
             >
-              Réessayer la connexion
+              {t("Réessayer la connexion")}
             </button>
           ) : user ? (
             <>
               <Dropdown.Root>
                 <Dropdown.Trigger
                   className="account-trigger"
-                  aria-label="Ouvrir le menu du compte"
+                  aria-label={t("Ouvrir le menu du compte")}
                 >
                   <Avatar user={user} />
                   <span className="account-name">{user.username}</span>
@@ -64,15 +71,15 @@ export function Navbar() {
                     collisionPadding={12}
                   >
                     <Dropdown.Label className="menu-identity">
-                      <span className="overline">MON COMPTE</span>
+                      <span className="overline">{t("MON COMPTE")}</span>
                       <strong>{user.username}</strong>
                     </Dropdown.Label>
                     <div className="menu-connection">
                       <Clock3 size={15} />
                       <div>
-                        <span>Dernière connexion</span>
+                        <span>{t("Dernière connexion")}</span>
                         <time dateTime={user.last_login_at || undefined}>
-                          {formatConnection(user.last_login_at)}
+                          {formatConnection(user.last_login_at, language)}
                         </time>
                       </div>
                     </div>
@@ -80,7 +87,7 @@ export function Navbar() {
                     <Dropdown.Item asChild>
                       <Link href="/profil" className="menu-item">
                         <UserRound size={17} />
-                        Modifier mon profil
+                        {t("Modifier mon profil")}
                         <ArrowUpRight size={15} className="push-right" />
                       </Link>
                     </Dropdown.Item>
@@ -98,14 +105,14 @@ export function Navbar() {
                       ) : (
                         <LogOut size={17} />
                       )}
-                      Se déconnecter
+                      {t("Se déconnecter")}
                     </Dropdown.Item>
                   </Dropdown.Content>
                 </Dropdown.Portal>
               </Dropdown.Root>
               {logout.isError ? (
                 <span className="nav-error" role="alert">
-                  Déconnexion impossible. Réessayez.
+                  {t("Déconnexion impossible. Réessayez.")}
                 </span>
               ) : null}
             </>
@@ -115,13 +122,13 @@ export function Navbar() {
                 href="/connexion"
                 className={`button button-quiet${pathname === "/connexion" ? " is-active" : ""}`}
               >
-                Se connecter
+                {t("Se connecter")}
               </Link>
               <Link
                 href="/inscription"
                 className="button button-primary nav-signup"
               >
-                Créer un compte
+                {t("Créer un compte")}
                 <ArrowUpRight size={15} />
               </Link>
             </>

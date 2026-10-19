@@ -11,7 +11,10 @@ const username = z
   );
 export const loginSchema = z.object({
   username,
-  password: z.string().min(1, "Saisissez votre mot de passe.").max(128),
+  password: z
+    .string()
+    .min(1, "Saisissez votre mot de passe.")
+    .max(128, "128 caractères maximum."),
 });
 export const registerSchema = z.object({
   username,

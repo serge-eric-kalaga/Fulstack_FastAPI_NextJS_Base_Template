@@ -1,14 +1,16 @@
 "use client";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useSession } from "./hooks";
 export function HomeActions() {
+  const { t } = useI18n();
   const session = useSession();
   if (session.isPending)
     return (
       <div
         className="skeleton hero-action-skeleton"
-        aria-label="Chargement de la session"
+        aria-label={t("Chargement de la session")}
       />
     );
   return (
@@ -17,7 +19,7 @@ export function HomeActions() {
         className="button button-primary button-large"
         href={session.data ? "/profil" : "/inscription"}
       >
-        {session.data ? "Ouvrir mon profil" : "Tester l’inscription"}
+        {session.data ? t("Ouvrir mon profil") : t("Tester l’inscription")}
         <ArrowRight size={18} />
       </Link>
       <Link
@@ -25,8 +27,8 @@ export function HomeActions() {
         href={session.data ? "/profil" : "/connexion"}
       >
         {session.data
-          ? `Bonjour, ${session.data.username}`
-          : "Tester la connexion"}
+          ? t("Bonjour, {{username}}", { username: session.data.username })
+          : t("Tester la connexion")}
       </Link>
     </div>
   );

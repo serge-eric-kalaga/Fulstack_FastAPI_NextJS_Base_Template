@@ -5,6 +5,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
+import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/lib/i18n/provider";
 import { sessionChannel, sessionKey } from "@/features/auth/hooks";
 
 function SessionEvents() {
@@ -50,9 +52,19 @@ export function Providers({ children }: { children: ReactNode }) {
       }),
   );
   return (
-    <QueryClientProvider client={client}>
-      <SessionEvents />
-      {children}
-    </QueryClientProvider>
+    <ThemeProvider
+      attribute="data-theme"
+      defaultTheme="system"
+      enableSystem
+      storageKey="fullstack-theme-v1"
+      disableTransitionOnChange
+    >
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <SessionEvents />
+          {children}
+        </QueryClientProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

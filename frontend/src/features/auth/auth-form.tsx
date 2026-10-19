@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,7 @@ import { useAuthenticate, useSession } from "./hooks";
 import { loginSchema, registerSchema, type RegisterInput } from "./schemas";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
+  const { t } = useI18n();
   const signup = mode === "register";
   const router = useRouter();
   const session = useSession();
@@ -49,49 +51,54 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       <aside className="auth-story">
         <span className="eyebrow">
           <span className="status-dot" />
-          AUTHENTIFICATION · MODULE DU TEMPLATE
+          {t("AUTHENTIFICATION · MODULE DU TEMPLATE")}
         </span>
         <h1>
           {signup ? (
             <>
-              Un compte.
+              {t("Un compte.")}
               <br />
-              Un premier test.
+              {t("Un premier test.")}
               <br />
-              <em>Votre projet démarre.</em>
+              <em>{t("Votre projet démarre.")}</em>
             </>
           ) : (
             <>
-              Votre projet.
+              {t("Votre projet.")}
               <br />
-              Une connexion<em> déjà intégrée.</em>
+              {t("Une connexion")}
+              <em> {t("déjà intégrée.")}</em>
             </>
           )}
         </h1>
         <p>
           {signup
-            ? "Créez un compte pour tester le parcours d’inscription inclus dans ce template fullstack."
-            : "Connectez-vous pour explorer le profil utilisateur et les fonctionnalités de départ du template."}
+            ? t(
+                "Créez un compte pour tester le parcours d’inscription inclus dans ce template fullstack.",
+              )
+            : t(
+                "Connectez-vous pour explorer le profil utilisateur et les fonctionnalités de départ du template.",
+              )}
         </p>
         <div className="story-note">
           <ShieldCheck size={21} />
           <span>
-            Inscription, connexion et profil.
+            {t("Inscription, connexion et profil.")}
             <br />
-            <strong>Une base à adapter à votre application.</strong>
+            <strong>{t("Une base à adapter à votre application.")}</strong>
           </span>
         </div>
         <span className="story-grid" aria-hidden="true" />
       </aside>
       <div className="auth-card">
         <div className="section-index">
-          {signup ? "01 / INSCRIPTION" : "01 / CONNEXION"}
+          {signup ? t("01 / INSCRIPTION") : t("01 / CONNEXION")}
         </div>
-        <h2>{signup ? "Créer votre compte" : "Se connecter"}</h2>
+        <h2>{signup ? t("Créer votre compte") : t("Se connecter")}</h2>
         <p className="muted">
           {signup
-            ? "Renseignez les informations du compte à créer."
-            : "Utilisez le compte créé sur cette instance du template."}
+            ? t("Renseignez les informations du compte à créer.")
+            : t("Utilisez le compte créé sur cette instance du template.")}
         </p>
         <form
           className="form-stack"
@@ -100,37 +107,49 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         >
           <Field
             id="username"
-            label="Nom d’utilisateur"
+            label={t("Nom d’utilisateur")}
             autoComplete="username"
             placeholder="ex. alex_martin"
             maxLength={64}
             {...form.register("username")}
-            error={form.formState.errors.username?.message}
+            error={
+              form.formState.errors.username?.message
+                ? t(form.formState.errors.username.message)
+                : undefined
+            }
           />
           {signup ? (
             <Field
               id="telephone"
-              label="Téléphone (facultatif)"
+              label={t("Téléphone (facultatif)")}
               autoComplete="tel"
               type="tel"
               placeholder="+226 70 00 00 00"
               maxLength={32}
               {...form.register("telephone")}
-              error={form.formState.errors.telephone?.message}
+              error={
+                form.formState.errors.telephone?.message
+                  ? t(form.formState.errors.telephone.message)
+                  : undefined
+              }
             />
           ) : null}
           <div className="password-field">
             <Field
               id="password"
-              label="Mot de passe"
+              label={t("Mot de passe")}
               type={showPassword ? "text" : "password"}
               autoComplete={signup ? "new-password" : "current-password"}
               placeholder={
-                signup ? "8 caractères minimum" : "Votre mot de passe"
+                signup ? t("8 caractères minimum") : t("Votre mot de passe")
               }
               maxLength={128}
               {...form.register("password")}
-              error={form.formState.errors.password?.message}
+              error={
+                form.formState.errors.password?.message
+                  ? t(form.formState.errors.password.message)
+                  : undefined
+              }
             />
             <button
               type="button"
@@ -138,8 +157,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={
                 showPassword
-                  ? "Masquer le mot de passe"
-                  : "Afficher le mot de passe"
+                  ? t("Masquer le mot de passe")
+                  : t("Afficher le mot de passe")
               }
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -147,7 +166,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </div>
           {mutation.error ? (
             <p role="alert" className="notice notice-error">
-              {mutation.error.message}
+              {t(mutation.error.message)}
             </p>
           ) : null}
           <button
@@ -158,20 +177,20 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             {mutation.isPending ? (
               <>
                 <LoaderCircle size={17} className="spin" />
-                {signup ? "Création du compte…" : "Connexion en cours…"}
+                {signup ? t("Création du compte…") : t("Connexion en cours…")}
               </>
             ) : (
               <>
-                {signup ? "Créer mon compte" : "Se connecter"}
+                {signup ? t("Créer mon compte") : t("Se connecter")}
                 <ArrowRight size={17} />
               </>
             )}
           </button>
         </form>
         <p className="auth-switch">
-          {signup ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
+          {signup ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <Link href={signup ? "/connexion" : "/inscription"}>
-            {signup ? "Se connecter" : "Créer un compte"}
+            {signup ? t("Se connecter") : t("Créer un compte")}
             <ArrowUpRightSmall />
           </Link>
         </p>
