@@ -37,6 +37,7 @@ dependencies = [
     "bcrypt>=5.0.0,<6",
     "fastapi-redis-sdk>=0.9.1,<0.10",
     "pillow>=13.0.0,<14",
+    "alembic>=1.20.0,<2",
 ]
 
 [build-system]

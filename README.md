@@ -14,6 +14,7 @@ Base réutilisable pour des applications avec une API **FastAPI** et un frontend
 - [Photos de profil](#photos-de-profil)
 - [Envoi des e-mails](#envoi-des-e-mails)
 - [Logs et monitoring](#logs-et-monitoring)
+- [Migrations avec Alembic](#migrations-avec-alembic)
 - [Gestion des dépendances](#gestion-des-dépendances)
 - [Tests et vérifications](#tests-et-vérifications)
 
@@ -291,19 +292,6 @@ Les formats acceptés sont JPEG, PNG et WebP fixes. Le serveur contrôle le type
 
 Les fichiers binaires ne sont pas stockés dans Redis. Leur lecture utilise `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
 
-### Base existante : migration obligatoire
-
-`create_all` crée la colonne sur une nouvelle base mais ne modifie pas une table existante. Avant de relancer un backend mis à jour sur une base existante :
-
-```bash
-docker compose stop backend
-docker compose build backend
-docker compose run --rm --no-deps backend python -m scripts.migrate_profile_photo
-docker compose up -d --no-deps backend
-```
-
-Le [script de migration](backend/scripts/migrate_profile_photo.py) ajoute uniquement la colonne nullable `user.profile_photo`. Il conserve les utilisateurs et peut être réexécuté. Avec un backend local : `uv run --env-file ../.env.dev python -m scripts.migrate_profile_photo` depuis `backend/`.
-
 Le volume `backend_uploads` conserve les images ; sauvegarder ce volume avec la base SQL. Pour plusieurs instances sur des machines différentes, remplacer ce stockage local par un stockage partagé.
 
 ## Envoi des e-mails
@@ -356,6 +344,39 @@ Grafana provisionne les sources Prometheus et MySQL depuis [datasources.yaml](mo
 
 Le dossier `monitoring/signoz` et la configuration Nginx sont séparés ; aucun service correspondant n’est démarré par le Compose principal.
 
+## Migrations avec Alembic
+
+Alembic est configuré dans [backend/alembic.ini](backend/alembic.ini) et [migrations/env.py](backend/migrations/env.py). Il utilise `DATABASE_URL` et les métadonnées des modèles SQLAlchemy. Le dossier `migrations/versions/` est prêt pour les prochaines évolutions du schéma.
+
+Après modification d’un modèle, depuis `backend/`, générer une migration en comparant les modèles à la base de développement existante :
+
+```bash
+uv sync --frozen
+uv run --env-file ../.env.dev alembic revision --autogenerate -m "Ajouter un champ utilisateur"
+```
+
+Relire le fichier généré dans `migrations/versions/`, puis appliquer la migration avant de redémarrer le backend :
+
+```bash
+uv run --env-file ../.env.dev alembic upgrade head
+uv run --env-file ../.env.dev alembic current
+uv run --env-file ../.env.dev alembic check
+```
+
+Pour utiliser la connexion MySQL interne de Compose, exécuter ces commandes dans le conteneur backend (après reconstruction de son image pour installer Alembic) :
+
+```bash
+docker compose build backend
+docker compose run --rm --no-deps backend alembic revision --autogenerate -m "Ajouter un champ utilisateur"
+docker compose run --rm --no-deps backend alembic upgrade head
+docker compose run --rm --no-deps backend alembic current
+docker compose run --rm --no-deps backend alembic check
+```
+
+Le montage du code conserve les fichiers générés sur l’hôte. Versionner chaque migration avec la modification du modèle. `revision --autogenerate` génère un fichier à relire ; `upgrade head` l’applique. `check` indique les différences restantes entre modèles et base. Pour consulter les migrations : `alembic history`. Pour annuler la dernière migration sur une base de test : `alembic downgrade -1` ; les pertes de données dépendent des opérations présentes dans `downgrade()`.
+
+Le démarrage actuel de l’application reste inchangé. Les commandes Alembic sont exécutées explicitement et aucune migration des anciens changements n’est ajoutée. Le test [test_alembic.py](backend/test/test_alembic.py) génère une future modification dans un dossier temporaire, vérifie son application et son annulation en conservant l’utilisateur de test.
+
 ## Gestion des dépendances
 
 ### Backend avec uv
@@ -403,7 +424,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **33 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la migration additive. La migration a également été exécutée deux fois sur une table MySQL existante sans perte de données. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **33 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
