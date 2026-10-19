@@ -25,7 +25,7 @@ services:
     restart: always
     volumes:
       - ./backend/:/app/
-      - backend_uploads:/app/uploads
+      - backend_uploads:/app/static/uploads
     expose:
       - 80
     ports:

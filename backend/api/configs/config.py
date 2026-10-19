@@ -18,7 +18,7 @@ class SETTINGS(BaseSettings):
     REDIS_PREFIX: str = "fullstack:dev:v1"
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = Field(default=60, gt=0)
-    PROFILE_PHOTO_DIR: Path = Path("uploads/profile_photos")
+    PROFILE_PHOTO_DIR: Path = Path("static/uploads/profile_photos")
     PROFILE_PHOTO_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
     PROFILE_PHOTO_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
     EMAIL_HOST: str | None = None

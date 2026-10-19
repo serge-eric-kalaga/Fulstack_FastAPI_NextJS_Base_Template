@@ -54,4 +54,5 @@ monitoring/prometheus/prometheus_data/
 .DS_Store
 Thumbs.db
 /.agents/
-/backend/uploads/
+/backend/static/uploads/*
+!/backend/static/uploads/.gitkeep

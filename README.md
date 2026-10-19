@@ -50,6 +50,7 @@ Les versions exactes sont définies dans [frontend/package-lock.json](frontend/p
 │   ├── uv.lock
 │   ├── run.py                    # Point d’entrée ASGI
 │   ├── logs/                     # app.log et archives de rotation
+│   ├── static/uploads/           # Fichiers téléversés, dont profile_photos/
 │   ├── test/                     # Tests applicatifs et de non-régression
 │   └── api/
 │       ├── __init__.py            # Factory createApp, routes et exceptions
@@ -100,7 +101,7 @@ Les fichiers `.env` et `.env.*` sont ignorés par Git. Les modèles `.env.exampl
 | `REDIS_PREFIX` | Namespace du cache (défaut `fullstack:dev:v1`), à rendre unique par projet et environnement |
 | `CACHE_ENABLED` | Activer le cache (défaut `true`) |
 | `CACHE_TTL_SECONDS` | TTL par défaut strictement positif (60 secondes) |
-| `PROFILE_PHOTO_DIR` | Répertoire des photos (défaut `uploads/profile_photos`) |
+| `PROFILE_PHOTO_DIR` | Répertoire des photos (défaut `static/uploads/profile_photos`) |
 | `PROFILE_PHOTO_MAX_BYTES` | Limite du fichier téléversé (défaut 5 Mio) |
 | `PROFILE_PHOTO_MAX_PIXELS` | Limite de pixels avant décodage complet (défaut 16 millions) |
 | `ADMINS_EMAIL` | Adresses des administrateurs séparées par des virgules |
@@ -141,7 +142,7 @@ docker compose logs -f backend frontend
 | Visualiseur de logs | [localhost:7777](http://localhost:7777) |
 | MySQL / Redis | Réseau Docker uniquement, ports internes 3306 / 6379 |
 
-Les données MySQL, Prometheus et Grafana utilisent des volumes Docker nommés. Les photos utilisent le volume `backend_uploads`, monté dans `/app/uploads`, et survivent aux recréations du backend. Le frontend possède des volumes distincts pour `node_modules` et `.next`.
+Les données MySQL, Prometheus et Grafana utilisent des volumes Docker nommés. Les photos utilisent le volume `backend_uploads`, monté dans `/app/static/uploads`, et survivent aux recréations du backend. Le frontend possède des volumes distincts pour `node_modules` et `.next`.
 
 Le Compose et les Dockerfiles actuels servent au développement : rechargement automatique activé côté backend et frontend. Ils doivent être adaptés avant un déploiement en production.
 
@@ -291,6 +292,8 @@ L’utilisateur cible du téléversement est déterminé par le JWT : aucun iden
 Les formats acceptés sont JPEG, PNG et WebP fixes. Le serveur contrôle le type réel, rejette les fichiers invalides/animés, limite la taille et le nombre de pixels, puis réencode les pixels en WebP sans métadonnées, au maximum 1024 × 1024. Les noms de fichier sont générés côté serveur. Une photo refusée ne remplace pas l’ancienne ; en cas d’échec du commit SQL, le nouveau fichier est supprimé. Après remplacement réussi, l’ancien fichier est supprimé. La suppression du compte nettoie également sa photo.
 
 Les fichiers binaires ne sont pas stockés dans Redis. Leur lecture utilise `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
+
+Les fichiers téléversés sont regroupés sous `static/uploads/`. Le volume `backend_uploads` est réutilisé au nouveau point de montage : ses photos existantes restent disponibles sans copie. Les photos restent servies par la route authentifiée ; ce dossier n’est pas exposé publiquement par StaticFiles.
 
 Le volume `backend_uploads` conserve les images ; sauvegarder ce volume avec la base SQL. Pour plusieurs instances sur des machines différentes, remplacer ce stockage local par un stockage partagé.
 
