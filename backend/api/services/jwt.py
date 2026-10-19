@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from api.configs.config import Setting
 from jose import jwt, JWTError
 from werkzeug.exceptions import Unauthorized, Forbidden
@@ -13,9 +13,9 @@ def create_token(data: dict, expire_delta: timedelta | None = None):
     """Signer une copie des données avec une expiration UTC explicite ou celle configurée."""
     to_encode = data.copy()
     if expire_delta:
-        expire = datetime.now(timezone.utc) + expire_delta
+        expire = datetime.now(UTC) + expire_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=Setting.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode.update({"exp": expire})

@@ -54,7 +54,7 @@ def createApp(config: SETTINGS) -> FastAPI:
         """
 
         do_not_log = False
-        if request.url.path not in [
+        if request.url.path in [
             "/api/healthcheck/",
             "/metrics",
             "/ws/socket.io/",

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from datetime import UTC, datetime
 from typing import Optional, List
 from .response import Response
 
@@ -107,4 +108,33 @@ class UserResponseListModel(Response):
 
     data: List[UserModel] = Field(
         description="Liste des utilisateurs retournés par l’API, sans leurs mots de passe.",
+    )
+
+
+class CurrentUserModel(UserModel):
+    """Profil privé du compte connecté et dernière authentification réussie."""
+
+    last_login_at: datetime | None = Field(
+        default=None,
+        description="Date UTC de la dernière connexion réussie ; null pour un compte jamais connecté.",
+        json_schema_extra={"readOnly": True},
+        examples=["2026-10-19T16:30:00Z"],
+    )
+
+    @field_validator("last_login_at", mode="before")
+    @classmethod
+    def utc_timestamp(cls, value):
+        """Rendre explicite le fuseau UTC des valeurs DATETIME stockées en base."""
+        if isinstance(value, datetime) and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+
+class OwnProfileUpdate(BaseModel):
+    """Champs modifiables depuis l’espace personnel ; l’identifiant reste stable."""
+
+    model_config = ConfigDict(extra="forbid")
+    telephone: str | None = Field(
+        default=None, max_length=32, description="Numéro de téléphone ; null pour l’effacer.",
+        examples=["+22670000000"],
     )

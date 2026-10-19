@@ -1,6 +1,6 @@
 # Fullstack FastAPI + Next.js Template
 
-Base réutilisable pour des applications avec une API **FastAPI** et un frontend **Next.js**. Le backend fournit l’authentification JWT, la gestion des utilisateurs, Socket.IO, les e-mails et les métriques. Le frontend contient une page d’accueil minimale à personnaliser ; les écrans de connexion et de gestion des utilisateurs restent à construire.
+Base réutilisable pour des applications avec une API **FastAPI** et un frontend **Next.js**. Le backend fournit l’authentification JWT, la gestion des utilisateurs, Socket.IO, les e-mails et les métriques. Le frontend propose une navbar responsive, l’inscription, la connexion et un espace personnel avec téléphone, photo et dernière connexion.
 
 ## Sommaire
 
@@ -80,11 +80,11 @@ Préparer les fichiers locaux suivants avant de démarrer :
 
 | Fichier | Utilisation |
 |---|---|
-| `.env.dev` | Injecté par Compose dans le backend, MySQL, Redis et phpMyAdmin |
+| `.env.dev` | Injecté par Compose dans le backend, le frontend, MySQL, Redis et phpMyAdmin |
 | `.env.test` | Chargé par la suite de tests backend |
-| `monitoring/grafana/.env.grafana` | Injecté dans Grafana |
+| `.env.grafana` | Injecté dans Grafana |
 
-Les fichiers `.env` et `.env.*` sont ignorés par Git. Les modèles `.env.example` et `.env.*.example` peuvent être versionnés. Le fichier `.env.prod`, s’il est créé, nécessite une configuration de déploiement dédiée : le Compose actuel utilise `.env.dev`.
+Tous les fichiers d’environnement sont conservés à la racine du projet ; aucun fichier env ne doit être ajouté dans `frontend/` ou `backend/`. Les fichiers `.env` et `.env.*` sont ignorés par Git. Les modèles `.env.example` et `.env.*.example` peuvent être versionnés. Le fichier `.env.prod`, s’il est créé, nécessite une configuration de déploiement dédiée : le Compose actuel utilise `.env.dev`.
 
 ### Backend
 
@@ -175,7 +175,7 @@ npm ci
 npm run dev
 ```
 
-Ouvrir [localhost:3000](http://localhost:3000). Le point de départ est [page.tsx](frontend/src/app/page.tsx). Le lien vers Swagger sur la page d’accueil vise le backend local sur le port 8080.
+Ouvrir [localhost:3000](http://localhost:3000). Le point de départ est [page.tsx](frontend/src/app/page.tsx). Configurer `BACKEND_URL` côté serveur Next.js pour joindre FastAPI ; Compose définit déjà cette adresse.
 
 Après un build, `npm start` permet de démarrer le serveur Next.js en mode production. Voir aussi le [README frontend](frontend/README.md).
 
@@ -189,7 +189,7 @@ uv sync --frozen
 uv run --env-file ../.env.dev uvicorn run:app --host 0.0.0.0 --port 8000 --reload --reload-dir api
 ```
 
-Le backend local est alors disponible sur le port 8000. Adapter les liens du frontend si nécessaire.
+Le backend local est alors disponible sur le port 8000. Définir `BACKEND_URL=http://127.0.0.1:8000` dans le fichier `.env.dev` à la racine pour utiliser ce backend.
 
 Les noms `mysql` et `redis` ne sont résolus que dans le réseau Docker. Pour un backend exécuté sur l’hôte, utiliser des services accessibles depuis l’hôte et adapter leurs URL. Le Compose actuel ne publie pas les ports MySQL et Redis.
 
@@ -232,6 +232,8 @@ Ces routes nécessitent un jeton Bearer valide.
 
 | Méthode | Route | Utilisation |
 |---|---|---|
+| `GET` | `/api/user/me` | Compte connecté et dernière connexion UTC |
+| `PATCH` | `/api/user/me` | Modifier son téléphone (`null` pour le supprimer) |
 | `GET` | `/api/user/` | Lister les utilisateurs |
 | `GET` | `/api/user/{username}` | Consulter un utilisateur |
 | `PUT` | `/api/user/{username}` | Mettre à jour un utilisateur |
@@ -280,7 +282,7 @@ Dans Compose, `REDIS_URL` est injecté avec une valeur par défaut. Pour un Redi
 
 ## Photos de profil
 
-Cette fonctionnalité est disponible dans l’API et Swagger ; le frontend minimal ne propose pas encore d’écran de profil.
+La page frontend `/profil` permet de modifier sa photo et son téléphone. Le menu de la navbar affiche la dernière connexion et propose la déconnexion.
 
 | Méthode | Route | Utilisation |
 |---|---|---|
@@ -349,7 +351,7 @@ Le dossier `monitoring/signoz` et la configuration Nginx sont séparés ; aucun 
 
 ## Migrations avec Alembic
 
-Alembic est configuré dans [backend/alembic.ini](backend/alembic.ini) et [migrations/env.py](backend/migrations/env.py). Il utilise `DATABASE_URL` et les métadonnées des modèles SQLAlchemy. Le dossier `migrations/versions/` est prêt pour les prochaines évolutions du schéma.
+Alembic est configuré dans [backend/alembic.ini](backend/alembic.ini) et [migrations/env.py](backend/migrations/env.py). Il utilise `DATABASE_URL` et les métadonnées des modèles SQLAlchemy. La migration `0001_last_login_at` ajoute la dernière connexion. Si SQLAlchemy a déjà créé cette colonne sur une base neuve, elle vérifie sa compatibilité. Exécuter `alembic upgrade head` avant de redémarrer le backend sur une base existante.
 
 Après modification d’un modèle, depuis `backend/`, générer une migration en comparant les modèles à la base de développement existante :
 
@@ -427,7 +429,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **33 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **37 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
@@ -449,3 +451,7 @@ npm audit
 ```
 
 Dernières vérifications réalisées : lint, typage, build de production en conteneur et affichage navigateur réussis ; audit npm sans vulnérabilité signalée lors de cette validation. Le rechargement backend a aussi été vérifié : modification du code API détectée, modifications des environnements Python ignorées, healthcheck HTTP 200.
+
+### Session frontend
+
+TanStack Query partage le compte connecté et les données serveur ; React Hook Form et Zod gèrent les formulaires. Les appels navigateur passent par Next.js, qui conserve le JWT dans un cookie HttpOnly, SameSite=Lax, et communique avec FastAPI via `BACKEND_URL`. Les écritures vérifient l’origine et les réponses privées utilisent `no-store`. En production HTTPS, définir `APP_ORIGIN` avec l’origine publique exacte et conserver le cookie Secure. Voir le [README frontend](frontend/README.md) pour étendre ces services et lancer `npm run test:api`.

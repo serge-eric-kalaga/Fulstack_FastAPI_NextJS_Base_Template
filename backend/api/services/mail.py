@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -65,7 +65,7 @@ def send_app_exception_to_admin(
         params = {
             "error_type": error_type,
             "error_message": error_message,
-            "timestamp": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S"),
+            "timestamp": datetime.now(UTC).strftime("%d/%m/%Y %H:%M:%S"),
             "app_name": Setting.APP_NAME,
         }
         template: Template = env.get_template("error500_admin_mail.html")

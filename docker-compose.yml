@@ -67,8 +67,10 @@ services:
       - backend
     networks:
       - asgard
+    env_file:
+      - ./.env.dev
     environment:
-      NEXT_TELEMETRY_DISABLED: "1"
+      BACKEND_URL: http://backend:80
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -115,7 +117,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     env_file:
-      - ./monitoring/grafana/.env.grafana
+      - ./.env.grafana
     networks:
       - monitor
 

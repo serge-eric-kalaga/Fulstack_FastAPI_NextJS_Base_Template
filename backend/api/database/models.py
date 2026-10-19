@@ -64,6 +64,10 @@ class User(Base, BaseTemplate):
         VARCHAR(255), nullable=True, init=False, default=None
     )
 
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(), nullable=True, init=False, default=None
+    )
+
     @property
     def profile_photo_url(self) -> str | None:
         """Retourner l’URL authentifiée de la photo, versionnée après remplacement."""

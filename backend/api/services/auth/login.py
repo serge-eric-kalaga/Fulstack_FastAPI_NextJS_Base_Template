@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from api.database.models import User
 from api.schemas.user import LoginModel
 from werkzeug.exceptions import Unauthorized
@@ -13,6 +14,9 @@ def login(db, credentials: LoginModel) -> str:
     ):
         raise Unauthorized(description="Username / Mot de passe incorrest !")
 
+    # Horodatage UTC enregistré uniquement après validation des identifiants.
+    user_exist.last_login_at = datetime.now(UTC).replace(tzinfo=None)
+    db.commit()
     token = create_token(data={"username": credentials.username})
     return token
 

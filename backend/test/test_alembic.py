@@ -39,6 +39,10 @@ def test_future_migration_generation_upgrade_and_downgrade(migration_engine, tmp
     shutil.copytree(root / "migrations", scripts)
     config = Config(str(root / "alembic.ini"))
     config.set_main_option("script_location", str(scripts))
+    initial_files = set((root / "migrations" / "versions").glob("*.py"))
+    with migration_engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
     target = sa.MetaData()
     for table in Base.metadata.sorted_tables:
         table.to_metadata(target)
@@ -57,7 +61,7 @@ def test_future_migration_generation_upgrade_and_downgrade(migration_engine, tmp
         assert "migration_probe" in {c["name"] for c in sa.inspect(connection).get_columns("user")}
         command.check(config)
         assert connection.execute(sa.text("SELECT username,password,telephone FROM user")).one() == ("existing", "hash", "123")
-        command.downgrade(config, "base")
+        command.downgrade(config, "-1")
         assert "migration_probe" not in {c["name"] for c in sa.inspect(connection).get_columns("user")}
         assert connection.execute(sa.text("SELECT username FROM user")).scalar_one() == "existing"
 
@@ -66,4 +70,4 @@ def test_future_migration_generation_upgrade_and_downgrade(migration_engine, tmp
     config.output_buffer = io.StringIO()
     command.upgrade(config, "head", sql=True)
     assert "migration_probe" in config.output_buffer.getvalue()
-    assert not list((root / "migrations" / "versions").glob("*.py"))
+    assert set((root / "migrations" / "versions").glob("*.py")) == initial_files
