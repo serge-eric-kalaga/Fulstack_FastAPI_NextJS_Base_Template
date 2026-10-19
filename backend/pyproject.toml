@@ -35,6 +35,8 @@ dependencies = [
     "pydantic>=2.14.1,<3",
     "certifi>=2026.10.18,<2027",
     "bcrypt>=5.0.0,<6",
+    "fastapi-redis-sdk>=0.9.1,<0.10",
+    "pillow>=13.0.0,<14",
 ]
 
 [build-system]

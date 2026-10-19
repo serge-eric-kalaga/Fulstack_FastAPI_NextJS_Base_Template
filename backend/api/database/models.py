@@ -1,5 +1,6 @@
 from pydantic import field_validator
 from typing import Optional, List
+from urllib.parse import quote
 from api.database import BaseTemplate
 from sqlalchemy import (
     func,
@@ -58,6 +59,17 @@ class User(Base, BaseTemplate):
     )
     telephone: Mapped[str] = mapped_column(VARCHAR(255), nullable=True, init=True)
     password: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, init=True)
+
+    profile_photo: Mapped[str | None] = mapped_column(
+        VARCHAR(255), nullable=True, init=False, default=None
+    )
+
+    @property
+    def profile_photo_url(self) -> str | None:
+        """Retourner l’URL authentifiée de la photo, versionnée après remplacement."""
+        if not self.profile_photo:
+            return None
+        return f"/api/user/{quote(self.username, safe='')}/photo?v={self.profile_photo}"
 
     @field_validator("username")
     def validate_username(cls, username):

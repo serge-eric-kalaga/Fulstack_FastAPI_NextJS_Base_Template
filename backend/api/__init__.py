@@ -78,7 +78,7 @@ def createApp(config: SETTINGS) -> FastAPI:
         Gestionnaire d'exception pour les exceptions HTTP de Werkzeug
         """
         logError(exc)
-        if exc.status_code == 500:
+        if exc.code == 500:
             send_app_exception_to_admin(
                 error_message=exc,
                 error_type="Internal Server Error",
@@ -162,4 +162,7 @@ def createApp(config: SETTINGS) -> FastAPI:
     from api.database import init_database, engine
 
     init_database(engine)
+
+    from api.services.cache import configure_cache
+    configure_cache(app, config)
     return app

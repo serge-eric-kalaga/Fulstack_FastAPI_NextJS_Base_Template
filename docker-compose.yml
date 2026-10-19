@@ -20,9 +20,12 @@ services:
 
   backend:
     build: ./backend
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     restart: always
     volumes:
       - ./backend/:/app/
+      - backend_uploads:/app/uploads
     expose:
       - 80
     ports:
@@ -132,6 +135,7 @@ networks:
   monitor:
 
 volumes:
+  backend_uploads:
   mysql_data:
   frontend_node_modules:
   frontend_next:

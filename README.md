@@ -1,132 +1,171 @@
 # Fullstack FastAPI + Next.js Template
 
-Template de base pour les projets **fullstack FastAPI et Next.js**, écrit en Python avec le framework **FastAPI**. Il fournit une architecture prête à l'emploi (authentification JWT, base de données, WebSocket, logging, monitoring, conteneurisation) qui évolue régulièrement en fonction des besoins.
+Base réutilisable pour des applications avec une API **FastAPI** et un frontend **Next.js**. Le backend fournit l’authentification JWT, la gestion des utilisateurs, Socket.IO, les e-mails et les métriques. Le frontend contient une page d’accueil minimale à personnaliser ; les écrans de connexion et de gestion des utilisateurs restent à construire.
 
 ## Sommaire
 
 - [Stack technique](#stack-technique)
-- [Fonctionnalités](#fonctionnalités)
-- [Architecture du projet](#architecture-du-projet)
-- [Configuration des variables d'environnement](#configuration-des-variables-denvironnement)
+- [Structure du projet](#structure-du-projet)
+- [Configuration](#configuration)
 - [Démarrage avec Docker](#démarrage-avec-docker)
 - [Développement local](#développement-local)
-- [Gestion des dépendances (uv)](#gestion-des-dépendances-uv)
-- [Tests unitaires](#tests-unitaires)
-- [API](#api)
-- [Monitoring](#monitoring)
+- [API et authentification](#api-et-authentification)
+- [Cache Redis réutilisable](#cache-redis-réutilisable)
+- [Photos de profil](#photos-de-profil)
+- [Envoi des e-mails](#envoi-des-e-mails)
+- [Logs et monitoring](#logs-et-monitoring)
+- [Gestion des dépendances](#gestion-des-dépendances)
+- [Tests et vérifications](#tests-et-vérifications)
 
 ## Stack technique
 
-| Domaine | Technologie |
+| Domaine | Technologies du projet |
 |---|---|
-| Langage | Python `>=3.11` (image Docker : `python:3.14`) |
-| Framework web | FastAPI `0.148` + Uvicorn |
-| Base de données | MySQL via SQLAlchemy `2.1` (ORM) + PyMySQL |
-| Cache / Broker | Redis |
-| Authentification | JWT (`python-jose`), hachage des mots de passe (`werkzeug` / `bcrypt`) |
-| WebSocket temps réel | `python-socketio` (monté sur `/ws`) |
-| Validation / config | Pydantic `2` + `pydantic-settings` |
-| Monitoring | Prometheus (`prometheus-fastapi-instrumentator`) + Grafana + Signoz |
-| Logging | Logs JSON rotatifs (`python-json-logger`, `TimedRotatingFileHandler`) |
-| Tests | Pytest + Faker + HTTPX (`TestClient`) |
-| Gestion des dépendances | [uv](https://github.com/astral-sh/uv) (`uv_build` comme build backend) |
+| Frontend | Next.js 16.4.2, React 19.3, TypeScript, App Router |
+| Styles et qualité | Tailwind CSS 4, ESLint, contrôle TypeScript |
+| Runtime frontend | Node.js 24, npm et `package-lock.json` |
+| Backend | Python `>=3.11,<4`, image Docker Python 3.14, FastAPI 0.148, Uvicorn |
+| Validation | Pydantic 2, pydantic-settings |
+| Base de données | MySQL, SQLAlchemy 2.1, PyMySQL |
+| Cache | fastapi-redis-sdk 0.9.1, Redis 7.4+ ; dépendances GET et invalidation par groupe |
+| Authentification | JWT avec python-jose ; hachage à la création du compte avec Werkzeug |
+| Temps réel | Socket.IO, transports polling et WebSocket |
+| E-mails | SMTP avec STARTTLS, modèles HTML Jinja2 |
+| Observabilité | Prometheus, Grafana, journaux texte avec rotation quotidienne |
+| Tests | Pytest, Faker, TestClient FastAPI et mocks SMTP |
+| Dépendances Python | uv, `pyproject.toml` et `uv.lock` |
 
-## Fonctionnalités
+Les versions exactes sont définies dans [frontend/package-lock.json](frontend/package-lock.json) et [backend/uv.lock](backend/uv.lock).
 
-- **Authentification JWT** : enregistrement, connexion et protection des routes via un token Bearer.
-- **CRUD utilisateur** complet (routes protégées par JWT).
-- **Réponses normalisées** : toutes les réponses suivent le schéma `{ status, status_code, message, data }`.
-- **Gestion centralisée des exceptions** (HTTP, Werkzeug, Starlette, erreurs de validation) avec envoi d'e-mail à l'administrateur en cas d'erreur 500.
-- **Middleware de logging** enregistrant chaque requête/réponse.
-- **BaseTemplate** ORM offrant des helpers réutilisables (`get`, `getOrNone`, `getAll`, `saveWithCommit`, `deleteWithCommit`…).
-- **WebSocket** prêt à l'emploi via Socket.IO.
-- **Métriques Prometheus** exposées sur `/metrics`.
-- **Healthcheck** sur `/api/healthcheck/`.
-- **Conteneurisation complète** via Docker Compose (backend, MySQL, phpMyAdmin, Redis, Prometheus, Grafana, visualiseur de logs).
+## Structure du projet
 
-## Architecture du projet
-
-```
+```text
 .
-├── docker-compose.yml          # Orchestration de tous les services
-├── .env.dev / .env.test        # Variables d'environnement (dev / tests)
-├── nginx/                      # Configuration du reverse proxy Nginx
-├── monitoring/                 # Prometheus, Grafana, Signoz
-└── backend/
-    ├── Dockerfile
-    ├── pyproject.toml          # Dépendances gérées par uv
-    ├── uv.lock
-    ├── run.py                  # Point d'entrée (crée l'app + dossiers logs/static)
-    ├── logs/                   # Logs applicatifs (app.log)
-    ├── test/                   # Tests unitaires (pytest)
-    └── api/
-        ├── __init__.py         # createApp() : factory FastAPI (routers, middlewares, handlers)
-        ├── configs/            # Settings (pydantic-settings) + logging
-        ├── database/           # engine, session, BaseTemplate, modèles ORM
-        ├── schemas/            # Modèles Pydantic (requêtes / réponses)
-        ├── views/              # Routes : auth, user, healthcheck
-        ├── services/           # Logique métier : auth, jwt, mail, socket
-        ├── middleware/         # Middleware de logging
-        ├── utility/            # Lifespan, utilitaires
-        └── html/               # Templates e-mail
+├── docker-compose.yml
+├── README.md
+├── backend/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── uv.lock
+│   ├── run.py                    # Point d’entrée ASGI
+│   ├── logs/                     # app.log et archives de rotation
+│   ├── test/                     # Tests applicatifs et de non-régression
+│   └── api/
+│       ├── __init__.py            # Factory createApp, routes et exceptions
+│       ├── configs/              # Paramètres et journalisation
+│       ├── database/             # Modèles SQLAlchemy et BaseTemplate
+│       ├── schemas/              # Schémas Pydantic et documentation OpenAPI
+│       ├── views/                # Routes auth, utilisateurs et healthcheck
+│       ├── services/             # Authentification, JWT, e-mails et Socket.IO
+│       ├── html/email/           # Modèles HTML des e-mails
+│       ├── middleware/
+│       └── utility/
+├── frontend/
+│   ├── Dockerfile                # Serveur de développement Next.js
+│   ├── package.json
+│   ├── package-lock.json
+│   └── src/app/                  # Layout, page d’accueil et styles
+├── monitoring/
+│   ├── prometheus/
+│   ├── grafana/
+│   └── signoz/                   # Fichiers séparés, hors du Compose principal
+└── nginx/                        # Configuration séparée, hors du Compose principal
 ```
 
-## Configuration des variables d'environnement
+## Configuration
 
-Le projet utilise trois fichiers d'environnement :
+Préparer les fichiers locaux suivants avant de démarrer :
 
-| Fichier | Usage |
+| Fichier | Utilisation |
 |---|---|
-| `.env.dev` | Développement |
-| `.env.test` | Tests unitaires |
-| `.env.prod` | Production (à créer, non versionné) |
+| `.env.dev` | Injecté par Compose dans le backend, MySQL, Redis et phpMyAdmin |
+| `.env.test` | Chargé par la suite de tests backend |
+| `monitoring/grafana/.env.grafana` | Injecté dans Grafana |
 
-Pour démarrer :
+Les fichiers `.env` et `.env.*` sont ignorés par Git. Les modèles `.env.example` et `.env.*.example` peuvent être versionnés. Le fichier `.env.prod`, s’il est créé, nécessite une configuration de déploiement dédiée : le Compose actuel utilise `.env.dev`.
 
-1. Configurez `.env.dev` et `.env.test` pour votre environnement.
-2. Configurez également `monitoring/grafana/.env.grafana` avant de lancer la stack complète.
-3. Les fichiers `.env*` sont ignorés ; seuls les modèles suffixés `.example` sont destinés à être versionnés.
+### Backend
 
-Principales variables :
-
-| Variable | Description |
+| Variable | Utilisation |
 |---|---|
-| `APP_NAME` | Nom de l'application |
-| `SECRET_KEY` | Clé secrète de l'application |
-| `JWT_SECRET` / `ALGORITHM` | Secret et algorithme de signature des tokens JWT |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Durée de validité du token |
-| `DATABASE_URL` | URL de connexion MySQL (`mysql+pymysql://…`) |
-| `BACKEND_REDIS_HOST` / `BACKEND_REDIS_PORT` / `REDIS_PASSWORD` | Configuration Redis |
-| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USERNAME` / `EMAIL_PASSWORD` | Configuration SMTP |
-| `ADMINS_EMAIL` | Adresse recevant les alertes d'erreurs serveur |
+| `APP_NAME` | Nom affiché par l’API et dans les alertes e-mail |
+| `SECRET_KEY` | Clé de configuration de l’application |
+| `JWT_SECRET` | Secret de signature des jetons JWT |
+| `ALGORITHM` | Algorithme JWT, par exemple `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Durée de validité des jetons, en minutes |
+| `DATABASE_URL` | Connexion SQLAlchemy, par exemple `mysql+pymysql://<user>:<password>@mysql:3306/<database>` dans Compose |
+| `REDIS_URL` | URL du SDK Redis ; Compose utilise `redis://redis:6379/0` par défaut |
+| `REDIS_DATABASE_URL` | Ancien nom compatible, utilisé si `REDIS_URL` est absent |
+| `REDIS_PREFIX` | Namespace du cache (défaut `fullstack:dev:v1`), à rendre unique par projet et environnement |
+| `CACHE_ENABLED` | Activer le cache (défaut `true`) |
+| `CACHE_TTL_SECONDS` | TTL par défaut strictement positif (60 secondes) |
+| `PROFILE_PHOTO_DIR` | Répertoire des photos (défaut `uploads/profile_photos`) |
+| `PROFILE_PHOTO_MAX_BYTES` | Limite du fichier téléversé (défaut 5 Mio) |
+| `PROFILE_PHOTO_MAX_PIXELS` | Limite de pixels avant décodage complet (défaut 16 millions) |
+| `ADMINS_EMAIL` | Adresses des administrateurs séparées par des virgules |
+| `EMAIL_DOMAIN` | Domaine de l’expéditeur `notification@<domaine>` |
+| `EMAIL_HOST`, `EMAIL_PORT` | Serveur et port SMTP |
+| `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Identifiants SMTP |
 
-> Les fichiers d’environnement locaux ne doivent pas être publiés avec leurs secrets.
+`APP_NAME`, `ADMINS_EMAIL`, `SECRET_KEY`, `JWT_SECRET`, `ALGORITHM` et `DATABASE_URL` sont requis par la configuration Pydantic. Pour envoyer des e-mails, renseigner également les paramètres SMTP.
+
+Configurer les variables `MYSQL_*` attendues par l’image MySQL et les variables `PMA_*` de phpMyAdmin dans `.env.dev`. Les identifiants et le nom de base doivent correspondre à `DATABASE_URL`. Adapter également la source MySQL définie dans [datasources.yaml](monitoring/grafana/datasources.yaml) ; ne pas conserver d’identifiants réels dans un fichier versionné.
 
 ## Démarrage avec Docker
 
-L'ensemble de la stack se lance en une commande :
+Prérequis : Docker et Docker Compose, avec les fichiers d’environnement préparés.
 
 ```bash
-docker compose up
+# Vérifier la configuration sans afficher les valeurs résolues
+docker compose config --quiet
+
+# Construire et démarrer la stack
+docker compose up -d --build
+
+# Consulter l’état et les logs
+docker compose ps
+docker compose logs -f backend frontend
 ```
 
-Services et ports exposés :
+| Service | Accès depuis l’hôte |
+|---|---|
+| Frontend Next.js | [localhost:3000](http://localhost:3000) |
+| Backend FastAPI | [localhost:8080](http://localhost:8080) |
+| Swagger UI | [localhost:8080/docs](http://localhost:8080/docs) |
+| Schéma OpenAPI | [localhost:8080/openapi.json](http://localhost:8080/openapi.json) |
+| Healthcheck | [localhost:8080/api/healthcheck/](http://localhost:8080/api/healthcheck/) |
+| phpMyAdmin | [localhost:8081](http://localhost:8081) |
+| Prometheus | [localhost:9090](http://localhost:9090) |
+| Grafana | [localhost:3001](http://localhost:3001) |
+| Visualiseur de logs | [localhost:7777](http://localhost:7777) |
+| MySQL / Redis | Réseau Docker uniquement, ports internes 3306 / 6379 |
 
-| Service | URL / Port | Description |
-|---|---|---|
-| **backend** | http://localhost:8080 | API FastAPI |
-| Documentation API | http://localhost:8080/docs | Swagger UI |
-| **phpMyAdmin** | http://localhost:8081 | Administration MySQL |
-| **Prometheus** | http://localhost:9090 | Collecte des métriques |
-| **Frontend** | http://localhost:3000 | Application Next.js |
-| **Grafana** | http://localhost:3001 | Tableaux de bord |
-| **Log viewer** | http://localhost:7777 | Visualisation des logs |
-| MySQL | interne (`3306`) | Base de données |
-| Redis | interne (`6379`) | Cache |
+Les données MySQL, Prometheus et Grafana utilisent des volumes Docker nommés. Les photos utilisent le volume `backend_uploads`, monté dans `/app/uploads`, et survivent aux recréations du backend. Le frontend possède des volumes distincts pour `node_modules` et `.next`.
 
-## Frontend Next.js
+Le Compose et les Dockerfiles actuels servent au développement : rechargement automatique activé côté backend et frontend. Ils doivent être adaptés avant un déploiement en production.
 
-Base initialisée avec [create-next-app](https://nextjs.org/docs/app/api-reference/cli/create-next-app) : App Router, TypeScript, Tailwind CSS et ESLint. Node.js 24 et npm sont utilisés ; `frontend/package-lock.json` doit être versionné.
+### Rechargement du backend
+
+Le code `backend/` est monté dans `/app`. Les dépendances Python sont installées dans `/opt/venv` au build et restent disponibles malgré ce montage. Le serveur démarre directement avec cet environnement, sans réinstaller les dépendances à chaque lancement.
+
+Uvicorn surveille uniquement `/app/api`. Les changements dans les environnements locaux `.venv` et `venv` ne provoquent plus de rechargement.
+
+```bash
+# Après modification de run.py
+docker compose restart backend
+
+# Après modification des dépendances ou du Dockerfile backend
+docker compose up -d --no-deps --build backend
+
+# Arrêter la stack en conservant les volumes
+docker compose down
+```
+
+## Développement local
+
+### Frontend
+
+Prérequis : Node.js 24 et npm. La version Node est indiquée dans `frontend/.nvmrc`.
 
 ```bash
 cd frontend
@@ -134,152 +173,255 @@ npm ci
 npm run dev
 ```
 
-Ouvrez http://localhost:3000. Les commandes `npm run lint`, `npm run typecheck` et `npm run build` permettent de vérifier le frontend. Après un build, `npm start` démarre le serveur de production.
+Ouvrir [localhost:3000](http://localhost:3000). Le point de départ est [page.tsx](frontend/src/app/page.tsx). Le lien vers Swagger sur la page d’accueil vise le backend local sur le port 8080.
 
-Le Dockerfile frontend est prévu pour le développement avec rechargement automatique. Compose utilise des volumes dédiés pour `node_modules` et `.next`. Après modification des dépendances, exécutez `docker compose run --rm frontend npm ci`, puis reconstruisez le service.
+Après un build, `npm start` permet de démarrer le serveur Next.js en mode production. Voir aussi le [README frontend](frontend/README.md).
 
-Le backend Docker installe ses dépendances dans `/opt/venv`, hors du dossier source monté dans `/app`. Le démarrage utilise cet environnement directement ; Uvicorn surveille uniquement `/app/api` : les environnements locaux `.venv` et `venv` ne déclenchent plus de rechargement. Après modification du point d’entrée `run.py`, redémarrez le backend avec `docker compose restart backend`. Après modification de `pyproject.toml` ou `uv.lock`, reconstruisez et recréez le backend :
+### Backend
 
-```bash
-docker compose up -d --build backend
-```
-
-## Développement local
-
-Prérequis : [uv](https://github.com/astral-sh/uv) installé.
+Prérequis : Python compatible, uv et une base MySQL accessible depuis l’hôte.
 
 ```bash
 cd backend
-uv sync                 # installe les dépendances depuis uv.lock
-uv run uvicorn run:app --host 0.0.0.0 --port 8000 --reload
+uv sync --frozen
+uv run --env-file ../.env.dev uvicorn run:app --host 0.0.0.0 --port 8000 --reload --reload-dir api
 ```
 
-> Une instance MySQL et Redis accessibles (par exemple via `docker compose up mysql redis`) sont nécessaires, avec un `DATABASE_URL` correctement configuré.
+Le backend local est alors disponible sur le port 8000. Adapter les liens du frontend si nécessaire.
 
-## Gestion des dépendances (uv)
+Les noms `mysql` et `redis` ne sont résolus que dans le réseau Docker. Pour un backend exécuté sur l’hôte, utiliser des services accessibles depuis l’hôte et adapter leurs URL. Le Compose actuel ne publie pas les ports MySQL et Redis.
 
-Le projet a migré de Poetry vers **uv**. Les dépendances sont déclarées dans [`backend/pyproject.toml`](backend/pyproject.toml) et verrouillées dans `backend/uv.lock`.
+## API et authentification
+
+Les réponses applicatives utilisent l’enveloppe suivante ; les champs présents peuvent varier pour les erreurs :
+
+```json
+{
+  "status": 1,
+  "status_code": 200,
+  "message": "ok",
+  "data": {}
+}
+```
+
+### Authentification
+
+| Méthode | Route | Utilisation |
+|---|---|---|
+| `POST` | `/api/auth/register` | Créer un compte |
+| `POST` | `/api/auth/login` | Se connecter avec un corps JSON |
+| `POST` | `/api/auth/doc-login` | Connexion OAuth2 par formulaire pour Swagger |
+
+Exemple de création de compte :
+
+```json
+{
+  "username": "utilisateur_demo",
+  "password": "ExempleMotDePasse!2026",
+  "telephone": "+22670000000"
+}
+```
+
+La connexion JSON attend `username` et `password`. Elle retourne `data.username` et `data.token`. Envoyer ensuite le jeton dans l’en-tête `Authorization: Bearer <token>` pour accéder aux routes protégées. Dans Swagger, utiliser le bouton **Authorize**.
+
+### Utilisateurs
+
+Ces routes nécessitent un jeton Bearer valide.
+
+| Méthode | Route | Utilisation |
+|---|---|---|
+| `GET` | `/api/user/` | Lister les utilisateurs |
+| `GET` | `/api/user/{username}` | Consulter un utilisateur |
+| `PUT` | `/api/user/{username}` | Mettre à jour un utilisateur |
+| `DELETE` | `/api/user/{username}` | Supprimer un utilisateur |
+
+Les descriptions et exemples des attributs sont définis dans [schemas/user.py](backend/api/schemas/user.py) et visibles dans Swagger. Pour une mise à jour, les attributs omis ou à `null` sont ignorés par le service actuel.
+
+### Autres points d’entrée
+
+| Protocole | Route | Utilisation |
+|---|---|---|
+| HTTP GET | `/api/healthcheck/` | Vérifier que l’API répond |
+| HTTP GET | `/metrics` | Exposer les métriques Prometheus |
+| Socket.IO | `/ws/socket.io/` | Handshake polling ou WebSocket avec un client Socket.IO |
+
+Le healthcheck actuel ne teste pas explicitement Redis ni une requête SQL. Le montage Socket.IO utilise le chemin complet `/ws/socket.io` pour correspondre au routage Starlette.
+
+## Cache Redis réutilisable
+
+Le [SDK Redis officiel pour FastAPI](https://github.com/redis/fastapi-redis-sdk) est initialisé dans `configure_cache` et conserve le lifespan de l’application. Les connexions sont fermées à l’arrêt. Le module [services/cache.py](backend/api/services/cache.py) fournit deux dépendances :
+
+```python
+from fastapi import Depends
+from api.services.cache import cached_response, invalidate_cache
+
+@router.get("/products", dependencies=[Depends(cached_response("products", ttl=120))])
+def list_products():
+    return {"items": []}
+
+@router.post("/products", dependencies=[Depends(invalidate_cache("products"))])
+def create_product():
+    # Valider l’écriture SQL avant de retourner la réponse.
+    return {"created": True}
+```
+
+- `cached_response` authentifie par JWT par défaut, y compris sur un HIT. La clé combine chemin, paramètres de requête et identité utilisateur hachée ; elle ne contient pas le jeton.
+- Pour un contenu public, demander explicitement `authenticated=False`. Ne pas mettre en cache les routes de connexion ni les réponses contenant des secrets.
+- `invalidate_cache` efface le groupe uniquement après une écriture réussie. Appliquer cette dépendance à toutes les routes qui modifient les données du groupe.
+- Les lectures utilisateur (liste et détail) utilisent le groupe `users`. Création, mise à jour, suppression et remplacement de photo invalident ce groupe.
+- Le SDK expose `X-Redis-Cache: MISS`, `HIT` ou `BYPASS`. Les réponses privées portent `Cache-Control: no-store` pour ne pas être conservées par les navigateurs/proxies ; Redis conserve son entrée jusqu’au TTL ou à l’invalidation.
+- Si Redis devient indisponible, les opérations de cache échouent en mode dégradé : l’API continue de lire/écrire dans la base. Une invalidation manquée peut laisser une ancienne entrée jusqu’à son expiration.
+
+Pour les tests unitaires sans Redis réel, remplacer `get_cache_client` via `app.dependency_overrides`. Le TTL est toujours borné et strictement positif dans le helper. Le préfixe doit être unique par projet/environnement ; le modifier lors d’un changement incompatible du format des réponses. Les paramètres réseau du SDK (`REDIS_SOCKET_TIMEOUT`, `REDIS_SOCKET_CONNECT_TIMEOUT`, etc.) restent configurables par environnement.
+
+Dans Compose, `REDIS_URL` est injecté avec une valeur par défaut. Pour un Redis différent, définir cette variable dans l’environnement de Compose ou son fichier `.env`. `CACHE_ENABLED=false` permet de travailler sans cache. Les identifiants Redis éventuels doivent correspondre à la configuration du serveur.
+
+## Photos de profil
+
+Cette fonctionnalité est disponible dans l’API et Swagger ; le frontend minimal ne propose pas encore d’écran de profil.
+
+| Méthode | Route | Utilisation |
+|---|---|---|
+| `PUT` | `/api/user/me/photo` | Ajouter/remplacer sa propre photo avec le champ multipart `photo` |
+| `GET` | `/api/user/{username}/photo` | Lire une photo avec un jeton Bearer valide |
+
+L’utilisateur cible du téléversement est déterminé par le JWT : aucun identifiant d’un autre compte n’est accepté. La réponse contient `data.profile_photo_url`, également présent dans les lectures utilisateur ; il vaut `null` en l’absence de photo. Cette URL relative nécessite un en-tête `Authorization: Bearer <token>` à la lecture.
+
+Les formats acceptés sont JPEG, PNG et WebP fixes. Le serveur contrôle le type réel, rejette les fichiers invalides/animés, limite la taille et le nombre de pixels, puis réencode les pixels en WebP sans métadonnées, au maximum 1024 × 1024. Les noms de fichier sont générés côté serveur. Une photo refusée ne remplace pas l’ancienne ; en cas d’échec du commit SQL, le nouveau fichier est supprimé. Après remplacement réussi, l’ancien fichier est supprimé. La suppression du compte nettoie également sa photo.
+
+Les fichiers binaires ne sont pas stockés dans Redis. Leur lecture utilise `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
+
+### Base existante : migration obligatoire
+
+`create_all` crée la colonne sur une nouvelle base mais ne modifie pas une table existante. Avant de relancer un backend mis à jour sur une base existante :
 
 ```bash
-# Ajouter une dépendance
-uv add <package>
-
-# Synchroniser l'environnement avec le lockfile
-uv sync
-
-# Mettre à jour le lockfile
-uv lock
+docker compose stop backend
+docker compose build backend
+docker compose run --rm --no-deps backend python -m scripts.migrate_profile_photo
+docker compose up -d --no-deps backend
 ```
 
-## Dépendances backend mises à jour
+Le [script de migration](backend/scripts/migrate_profile_photo.py) ajoute uniquement la colonne nullable `user.profile_photo`. Il conserve les utilisateurs et peut être réexécuté. Avec un backend local : `uv run --env-file ../.env.dev python -m scripts.migrate_profile_photo` depuis `backend/`.
 
-Les contraintes de `backend/pyproject.toml` ciblent les versions stables disponibles au 19 octobre 2026 ; `backend/uv.lock` verrouille la résolution exacte. Les bornes supérieures limitent les changements majeurs (ou mineurs pour les paquets en version 0.x).
+Le volume `backend_uploads` conserve les images ; sauvegarder ce volume avec la base SQL. Pour plusieurs instances sur des machines différentes, remplacer ce stockage local par un stockage partagé.
 
-| Dépendance | Version verrouillée |
-|---|---|
-| FastAPI / Starlette | 0.148.0 / 1.9.0 |
-| Uvicorn | 0.54.0 |
-| SQLAlchemy / PyMySQL | 2.1.5 / 1.2.3 |
-| Pydantic / pydantic-settings | 2.14.1 / 2.16.0 |
-| Redis (client Python) | 8.1.0 |
-| HTTPX / Pytest | 0.28.1 / 9.1.1 |
-| Cryptography / bcrypt | 50.0.2 / 5.0.0 |
-| Python Socket.IO | 5.17.0 |
+## Envoi des e-mails
 
-Validation effectuée sous Python 3.14 en Docker : installation figée, `uv pip check`, neuf tests sur MySQL 8.4 isolé (création/mise à jour utilisateur, healthcheck, Swagger/OpenAPI, métriques Prometheus, handshakes Socket.IO polling et WebSocket, validation HTTP). Le montage Socket.IO utilise le chemin complet `/ws/socket.io` pour être compatible avec Starlette actuel. La compatibilité Python 3.11 reste déclarée et résolue par uv, mais son exécution n’a pas été testée.
+Le service [mail.py](backend/api/services/mail.py) expose `send_email(receiver_email, message_text, object)` :
 
-## Tests unitaires
+```python
+from api.services.mail import send_email
 
-Les tests utilisent `pytest`, `Faker` et le `TestClient` de FastAPI. Ils s'appuient sur `.env.test`.
+# Une adresse
+send_email(
+    receiver_email="alice@example.invalid",
+    message_text="<p>Bonjour.</p>",
+    object="Notification",
+)
+
+# Plusieurs adresses
+send_email(
+    receiver_email=["alice@example.invalid", "bob@example.invalid"],
+    message_text="<p>Bonjour à tous.</p>",
+    object="Notification collective",
+)
+```
+
+Une chaîne représente une seule adresse ; utiliser une liste pour plusieurs destinataires. Les espaces sont supprimés et les doublons retirés. Les destinataires d’un envoi collectif figurent dans l’en-tête `To` et sont donc visibles entre eux.
+
+La fonction utilise SMTP avec STARTTLS et authentification. Elle retourne `True` si tous les destinataires sont acceptés par le serveur SMTP, `False` si la liste est vide, si un destinataire est refusé ou si l’envoi échoue. En cas de refus partiel, certains destinataires peuvent tout de même avoir reçu l’e-mail ; l’acceptation SMTP ne garantit pas sa réception finale.
+
+`send_app_exception_to_admin` effectue des envois individuels aux adresses de `ADMINS_EMAIL`. Le modèle [error500_admin_mail.html](backend/api/html/email/error500_admin_mail.html) affiche le nom de l’application, le type et le message d’erreur, ainsi que l’horodatage UTC. Il échappe les variables HTML et utilise l’identité FastAPI + Next.js.
+
+## Logs et monitoring
+
+### Journaux applicatifs
+
+- Fichier : `backend/logs/app.log`, conservé dans le dossier monté depuis l’hôte.
+- Les démarrages et rechargements conservent son contenu ; `run.py` ouvre le fichier en mode ajout.
+- Rotation quotidienne à minuit UTC avec conservation de 200 archives au maximum.
+- Format texte avec date, chemin du fichier appelant, numéro de ligne et niveau ; le logger configuré n’utilise pas de format JSON.
+- Fonctions : `logInfo`, `logDebug`, `logError` et `logResponse` dans [logging.py](backend/api/configs/logging.py).
+
+Le middleware de la factory journalise actuellement les requêtes du healthcheck, des métriques et du chemin Socket.IO explicitement listé dans son code. Il ne journalise pas toutes les routes HTTP.
+
+Le visualiseur de logs rend le dossier `backend/logs` accessible sur le port 7777. Réserver cet accès à l’environnement de développement prévu.
+
+### Prometheus et Grafana
+
+Prometheus collecte les métriques de `backend:80/metrics` toutes les 15 secondes. Sa configuration se trouve dans [prometheus.yml](monitoring/prometheus/prometheus.yml).
+
+Grafana provisionne les sources Prometheus et MySQL depuis [datasources.yaml](monitoring/grafana/datasources.yaml). Les tableaux de bord métier restent à construire. Les nombreuses migrations Grafana sont attendues lors de l’initialisation d’un volume neuf.
+
+Le dossier `monitoring/signoz` et la configuration Nginx sont séparés ; aucun service correspondant n’est démarré par le Compose principal.
+
+## Gestion des dépendances
+
+### Backend avec uv
+
+Depuis `backend/` :
+
+```bash
+uv add <package>       # Ajouter une dépendance et mettre à jour le lockfile
+uv sync --frozen       # Installer la résolution verrouillée
+uv lock --upgrade      # Mettre à jour dans les contraintes de pyproject.toml
+```
+
+Versionner `pyproject.toml` et `uv.lock` ensemble. Pour changer une version majeure au-delà des bornes déclarées, adapter les contraintes puis vérifier la compatibilité applicative.
+
+### Frontend avec npm
+
+Depuis `frontend/` :
+
+```bash
+npm install <package>
+npm ci
+npm audit
+```
+
+Versionner `package.json` et `package-lock.json` ensemble. Un override ciblé du plugin ESLint Next.js remplace sa dépendance `fast-glob` par `tinyglobby@0.2.17`, afin de supprimer la chaîne vulnérable `micromatch` / `braces` sans rétrograder Next.js. Réévaluer cet override lors d’un correctif amont ; détails dans le [README frontend](frontend/README.md).
+
+Dans Compose, après modification des dépendances frontend, synchroniser le volume `node_modules`, puis reconstruire le service :
+
+```bash
+docker compose run --rm --no-deps frontend npm ci
+docker compose up -d --no-deps --build frontend
+```
+
+## Tests et vérifications
+
+### Backend
+
+Configurer `.env.test` avec une **base exclusivement réservée aux tests** : `BaseTest.setUpClass` supprime les tables avant les tests utilisateurs.
 
 ```bash
 cd backend
-uv sync
-uv run pytest
+uv sync --frozen
+CACHE_ENABLED=false uv run pytest -q
 ```
 
-La classe [`BaseTest`](backend/test/baseTest.py) fournit des utilitaires (création d'un utilisateur de test, récupération de token, assertions de base) pour écrire de nouveaux tests rapidement.
+La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-## API
+Dernière validation réalisée : **33 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la migration additive. La migration a également été exécutée deux fois sur une table MySQL existante sans perte de données. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
-Toutes les réponses respectent le schéma standard suivant :
+Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
-```json
-{
-    "status": 1,
-    "status_code": 200,
-    "message": "ok",
-    "data": {}
-}
+```bash
+cd backend
+CACHE_ENABLED=false uv run pytest -q
+# Avec un Redis de test accessible :
+CACHE_ENABLED=false TEST_REDIS_URL=redis://localhost:6379/15 uv run pytest -q
 ```
 
-### Authentification — `/api/auth`
+### Frontend
 
-#### Enregistrement d'un utilisateur
-
-**URL** : `/api/auth/register` — **Méthode** : `POST`
-
-```json
-{
-    "username": "johndoe",
-    "password": "motdepasse",
-    "telephone": "+1234567890"
-}
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
+npm audit
 ```
 
-**Réponse** :
-```json
-{
-    "status": 1,
-    "status_code": 200,
-    "message": "ok",
-    "data": { "username": "johndoe", "telephone": "+1234567890" }
-}
-```
-
-#### Connexion
-
-**URL** : `/api/auth/login` — **Méthode** : `POST`
-
-```json
-{
-    "username": "johndoe",
-    "password": "motdepasse"
-}
-```
-
-**Réponse** :
-```json
-{
-    "status": 1,
-    "status_code": 200,
-    "message": "ok",
-    "data": { "username": "johndoe", "token": "<JWT>" }
-}
-```
-
-> Le token JWT retourné doit être envoyé dans l'en-tête `Authorization: Bearer <token>` pour accéder aux routes protégées.
-
-### Utilisateurs — `/api/user` *(routes protégées par JWT)*
-
-| Méthode | URL | Description |
-|---|---|---|
-| `GET` | `/api/user/` | Liste de tous les utilisateurs |
-| `GET` | `/api/user/{username}` | Détails d'un utilisateur |
-| `PUT` | `/api/user/{username}` | Mise à jour d'un utilisateur |
-| `DELETE` | `/api/user/{username}` | Suppression d'un utilisateur |
-
-### Autres routes
-
-| Méthode | URL | Description |
-|---|---|---|
-| `GET` | `/api/healthcheck/` | Vérification de l'état du service |
-| `GET` | `/metrics` | Métriques Prometheus |
-| `WS` | `/ws/socket.io/` | Connexion WebSocket (Socket.IO) |
-
-## Monitoring
-
-- **Prometheus** scrute l'endpoint `/metrics` du backend (voir [`monitoring/prometheus/prometheus.yml`](monitoring/prometheus/prometheus.yml)).
-- **Grafana** permet de visualiser les métriques collectées (dashboards et sources de données préconfigurés).
-- **Signoz** est également disponible dans le dossier `monitoring/` pour l'observabilité applicative.
-- Les logs applicatifs sont écrits dans `backend/logs/app.log` (rotation quotidienne) et consultables via le **log viewer** sur le port `7777`.
+Dernières vérifications réalisées : lint, typage, build de production en conteneur et affichage navigateur réussis ; audit npm sans vulnérabilité signalée lors de cette validation. Le rechargement backend a aussi été vérifié : modification du code API détectée, modifications des environnements Python ignorées, healthcheck HTTP 200.

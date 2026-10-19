@@ -53,9 +53,19 @@ class UserModel(BaseModel):
         examples=["+22670000000"],
     )
 
+    profile_photo_url: Optional[str] = Field(
+        default=None,
+        description="URL relative de la photo de profil. Lecture authentifiée ; modification via PUT /api/user/me/photo.",
+        examples=["/api/user/utilisateur_demo/photo?v=identifiant.webp"],
+        json_schema_extra={"readOnly": True},
+    )
 
-class CreateUserModel(UserModel):
+
+class CreateUserModel(BaseModel):
     """Informations nécessaires à la création d’un compte utilisateur."""
+
+    username: str = Field(description="Nom d’utilisateur unique à créer.", examples=["utilisateur_demo"])
+    telephone: Optional[str] = Field(default=None, description="Numéro de téléphone facultatif.", examples=["+22670000000"])
 
     password: Optional[str] = Field(
         ...,

@@ -60,7 +60,8 @@ class BaseTest(unittest.TestCase):
         app = createApp(TESTING)
         self.db = sessionmaker(bind=engine)()
         init_database(engine)
-        self.client = TestClient(app=app)
+        self.addCleanup(self.db.close)
+        self.client = self.enterContext(TestClient(app=app))
 
         self.test_user = self.createTestUser()
         self.token = self.getTokens()

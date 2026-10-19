@@ -1,4 +1,6 @@
 from typing import Type
+from pathlib import Path
+from pydantic import Field
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 
@@ -11,7 +13,14 @@ class SETTINGS(BaseSettings):
     DATABASE_URL: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 31536000
     GOOGLE_API_KEY: str | None = None
-    REDIS_DATABASE_URL: str | None = None
+    REDIS_DATABASE_URL: str | None = None  # Ancien nom conservé pour compatibilité.
+    REDIS_URL: str | None = None
+    REDIS_PREFIX: str = "fullstack:dev:v1"
+    CACHE_ENABLED: bool = True
+    CACHE_TTL_SECONDS: int = Field(default=60, gt=0)
+    PROFILE_PHOTO_DIR: Path = Path("uploads/profile_photos")
+    PROFILE_PHOTO_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
+    PROFILE_PHOTO_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
     EMAIL_HOST: str | None = None
     EMAIL_DOMAIN: str | None = None
     EMAIL_PORT: str | None = None
