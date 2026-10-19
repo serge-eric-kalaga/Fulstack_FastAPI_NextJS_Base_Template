@@ -287,3 +287,7 @@ Les fichiers générés sont exclus d’ESLint, mais restent contrôlés par la 
 `NEXT_PUBLIC_APP_NAME`, défini dans `.env.dev` à la racine, personnalise la navbar, le pied de page, le lien d’accueil accessible et les titres des pages. La valeur par défaut est `Fullstack`. Elle est publique et intégrée au build Next.js ; ne pas y mettre de secret. Relancer le serveur de développement ou reconstruire le frontend après modification.
 
 La commande racine `python3 scripts/init_project.py --name "Ma Boutique"` prépare ce nom ainsi que la configuration backend, les secrets et les paramètres des services. Voir le README racine pour ses options et le démarrage Docker avec `--env-file .env.dev`.
+
+## Production
+
+Le fichier `Dockerfile.prod` construit une image Next.js standalone exécutée avec l’utilisateur `node`. Le déploiement utilise le Compose de production et `.env.prod` à la racine ; voir [Production](../README.md#production). Seul `NEXT_PUBLIC_APP_NAME` est transmis au build. `BACKEND_URL`, `APP_ORIGIN` et les cookies sécurisés sont configurés au démarrage.

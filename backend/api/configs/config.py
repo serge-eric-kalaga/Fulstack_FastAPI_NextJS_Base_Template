@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 
 class SETTINGS(BaseSettings):
+    INITIALISE_DATABASE: bool = True
     APP_NAME: str
     ADMINS_EMAIL: str
     SECRET_KEY: str

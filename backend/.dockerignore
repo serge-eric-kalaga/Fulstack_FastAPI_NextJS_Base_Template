@@ -9,3 +9,8 @@ __pycache__
 images/*
 static/uploads/
 logs/*.log*
+
+.env*
+.git
+.ruff_cache
+.test.db

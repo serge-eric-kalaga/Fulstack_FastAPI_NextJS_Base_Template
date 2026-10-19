@@ -4,9 +4,12 @@ import { resolve } from "node:path";
 
 // Configuration locale centralisée à la racine ; Compose injecte déjà ces variables.
 const envFile = resolve(process.cwd(), "../.env.dev");
-if (existsSync(envFile)) process.loadEnvFile(envFile);
+if (process.env.NODE_ENV !== "production" && existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async headers() {
     return [
       {

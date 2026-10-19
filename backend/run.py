@@ -17,7 +17,9 @@ with open(log_dir_file, "a"):
     pass
 
 
-app = createApp(SETTINGS())
+settings = SETTINGS()
+# En production, Alembic prépare le schéma avant le démarrage du serveur.
+app = createApp(settings, initialise_database=settings.INITIALISE_DATABASE)
 
 if __name__ == "__main___":
     import uvicorn

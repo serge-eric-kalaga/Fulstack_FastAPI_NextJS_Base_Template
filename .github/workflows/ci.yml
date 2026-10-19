@@ -198,3 +198,25 @@ jobs:
           npm run test:api
           npm run test:passwords
           npm run test:generated-api
+
+  # Construire les vraies images de production et démarrer la chaîne interne.
+  # Aucun certificat public ni secret réel n’est nécessaire dans ce job jetable.
+  production:
+    name: Production (Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Générer une configuration de production jetable
+        run: python3 scripts/init_production.py --name "Fullstack CI" --domain ci.example.com --admin-email ci@example.com
+      - name: Valider et construire les images
+        run: |
+          docker compose --env-file .env.prod -f docker-compose.prod.yml config --quiet
+          docker compose --env-file .env.prod -f docker-compose.prod.yml build
+      - name: Vérifier les migrations et la disponibilité des applications
+        run: |
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait --wait-timeout 180 mysql redis backend frontend
+          docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T frontend node -e "fetch('http://127.0.0.1:3000/api/auth/config').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      - name: Nettoyer les ressources de test
+        if: always()
+        run: docker compose --env-file .env.prod -f docker-compose.prod.yml down --volumes --remove-orphans

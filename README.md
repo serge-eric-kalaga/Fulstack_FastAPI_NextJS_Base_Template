@@ -7,6 +7,7 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage rapide](#démarrage-rapide)
 - [Initialiser un projet](#initialiser-un-projet)
+- [Production](#production)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
 - [Développement local](#développement-local)
@@ -85,7 +86,7 @@ docker compose --env-file .env.dev logs -f backend frontend     # Journaux
 docker compose --env-file .env.dev down                        # Arrêt sans suppression des volumes
 ```
 
-Le Compose fournit un environnement de développement avec rechargement du code. Prévoir une configuration de déploiement adaptée pour la production.
+Le Compose par défaut fournit un environnement de développement avec rechargement du code. Le déploiement utilise le fichier autonome `docker-compose.prod.yml` décrit dans [Production](#production).
 
 ## Initialiser un projet
 
@@ -123,6 +124,48 @@ Utiliser `docker compose --env-file .env.dev …` pour que Compose lise aussi `C
 
 L’envoi d’e-mails demande de renseigner SMTP dans `.env.dev`. La confirmation d’adresse est désactivée par défaut et peut être activée avec `EMAIL_VERIFICATION_ENABLED=true` après cette configuration.
 
+## Production
+
+Cette configuration cible un serveur Docker unique avec un nom de domaine public. Elle utilise des images dédiées, Next.js standalone et Uvicorn sans rechargement, exécutés avec des utilisateurs non privilégiés. Seul Caddy publie les ports 80/443 ; MySQL, Redis et FastAPI restent sur les réseaux Docker. Les routes du compte passent toujours par le proxy Next.js.
+
+### Préparer la configuration
+
+Depuis la racine, même si les fichiers de développement existent déjà :
+
+```bash
+python3 scripts/init_production.py --name "Mon Projet" \
+  --domain app.example.com --admin-email admin@example.com
+```
+
+La commande crée uniquement **`.env.prod` à la racine**, en mode privé `0600`, avec de nouveaux secrets SQL et JWT. Elle refuse tout écrasement. `--slug` et `--directory` permettent de choisir l’identifiant technique et le dossier cible. Le nom Compose reçoit le suffixe `-prod`, pour isoler les ressources du développement.
+
+Renseigner les variables SMTP dans `.env.prod` avant d’utiliser les e-mails. `EMAIL_VERIFICATION_ENABLED` reste un choix explicite. `DOMAIN`, `FRONTEND_URL` et `APP_ORIGIN` doivent correspondre au domaine HTTPS final ; `SESSION_COOKIE_SECURE=true` est imposé au frontend. Le nom public `NEXT_PUBLIC_APP_NAME` est intégré à l’image : toute modification nécessite un nouveau build. Le frontend ne reçoit pas les secrets SQL ou JWT.
+
+Faire pointer les enregistrements DNS du domaine vers le serveur et ouvrir les ports TCP 80/443 (UDP 443 pour HTTP/3). Caddy obtient et renouvelle les certificats HTTPS ; `TLS_EMAIL` est le contact ACME. Voir la [documentation HTTPS de Caddy](https://caddyserver.com/docs/automatic-https).
+
+### Démarrer et mettre à jour
+
+Utiliser ce fichier seul, sans le fusionner avec le Compose de développement :
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml config --quiet
+docker compose --env-file .env.prod -f docker-compose.prod.yml build
+# Démarrer les dépendances et attendre leur disponibilité.
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait mysql redis
+# Arrêter les processus applicatifs avant une migration potentiellement incompatible.
+docker compose --env-file .env.prod -f docker-compose.prod.yml stop caddy frontend backend
+# Exécution explicite à chaque déploiement, y compris après une mise à jour des images.
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+```
+
+Les premières révisions Alembic supposent la présence des tables initiales. Sur une base vide, le service `migrate` crée le schéma courant, applique les révisions puis vérifie sa cohérence. Sur une base existante, il exécute uniquement Alembic. Une erreur bloque le déploiement ; le serveur API ne crée ni ne modifie les tables au démarrage. Ajouter et versionner les nouvelles migrations avant chaque déploiement.
+
+Ce parcours de mise à jour comporte une interruption de service. Sauvegarder MySQL et les photos avant toute migration ; le retour à une ancienne image ne restaure pas les données. Les volumes `mysql_data`, `backend_uploads`, `backend_logs`, `caddy_data` et `caddy_config` conservent les données, journaux et certificats. Ne pas utiliser `down --volumes` pour arrêter la production. Les mots de passe MySQL ne sont pris en compte à l’initialisation d’un volume neuf : leur rotation demande aussi une mise à jour des comptes SQL.
+
+Les journaux Docker ont une rotation limitée ; les journaux applicatifs restent dans `backend_logs`. Le Compose de production ne lance pas phpMyAdmin, le serveur public de logs ni les interfaces de monitoring du développement. Les sauvegardes, leur restauration et la supervision du serveur doivent être organisées pour chaque projet. Cette configuration ne fournit pas de haute disponibilité.
+
 ## Configuration
 
 Tous les fichiers d’environnement restent **à la racine**. Ne pas en créer dans `frontend/` ou `backend/`.
@@ -154,6 +197,7 @@ Dans `.env.grafana`, définir `GF_SECURITY_ADMIN_USER` et `GF_SECURITY_ADMIN_PAS
 | `BACKEND_URL` | Adresse FastAPI utilisée uniquement par le serveur Next.js ; Compose définit `http://backend:80` |
 | `FRONTEND_URL` | URL publique utilisée pour les liens envoyés par e-mail ; défaut `http://localhost:3000` |
 | `APP_ORIGIN` | Origine exacte autorisée pour les écritures du proxy Next.js |
+| `INITIALISE_DATABASE` | Création ORM au démarrage en développement ; `false` en production, où le service de migration gère le schéma |
 | `SESSION_COOKIE_SECURE` | Imposer `true` en HTTPS ; `false` permet les tests de production sur HTTP local |
 
 Après modification des variables injectées par Compose, recréer les services concernés :
@@ -262,7 +306,7 @@ npm ci
 npm run dev
 ```
 
-Le frontend lit `.env.dev` à la racine. Pour joindre le backend local ci-dessus, utiliser `BACKEND_URL=http://127.0.0.1:8000`. Après `npm run build`, `npm run start` lance Next.js en mode production.
+En développement, le frontend lit `.env.dev` à la racine. En mode production, les variables sont injectées explicitement par Compose ; ce fichier de développement n’est pas chargé. Pour joindre le backend local ci-dessus, utiliser `BACKEND_URL=http://127.0.0.1:8000`. Après `npm run build`, `npm run start` lance Next.js en mode production.
 
 Dans Docker, le code est monté depuis l’hôte. Uvicorn surveille `backend/api/` ; redémarrer le backend après modification de `run.py`.
 
@@ -474,6 +518,7 @@ Le workflow [ci.yml](.github/workflows/ci.yml) s’exécute sur les pull request
 | --- | --- |
 | `Backend (sqlite)` | Initialisation du template, Ruff, Pytest avec Redis, export OpenAPI et migrations SQLite |
 | `Backend (mysql)` | Mêmes contrôles avec MySQL et vérification des migrations MySQL |
+| `Production (Docker)` | Images dédiées, démarrage MySQL/Redis/API/Next.js, migrations et requête via le proxy |
 | `Frontend` | Installation verrouillée, ESLint, TypeScript, traductions, contrat/SDK, build de production et tests HTTP |
 
 Les jobs utilisent des services jetables et une configuration indépendante des fichiers `.env` locaux. Aucun secret GitHub n’est requis. Une nouvelle exécution remplace celle de la même PR. Les contrôles OpenAPI et SDK font échouer la CI si les fichiers générés ne sont pas à jour.
