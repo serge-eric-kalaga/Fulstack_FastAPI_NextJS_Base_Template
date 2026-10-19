@@ -2,7 +2,8 @@ from api.configs import SETTINGS
 from fastapi import FastAPI
 
 
-def createApp(config: SETTINGS) -> FastAPI:
+def createApp(config: SETTINGS, *, initialise_database: bool = True) -> FastAPI:
+    """Construire l’API ; l’export OpenAPI peut ignorer toute initialisation SQL."""
     import werkzeug.exceptions as werkexcept
     from fastapi import Request, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
@@ -160,7 +161,8 @@ def createApp(config: SETTINGS) -> FastAPI:
     # ----------------init db------------------
     from api.database import init_database, engine
 
-    init_database(engine)
+    if initialise_database:
+        init_database(engine)
 
     from api.services.cache import configure_cache
     configure_cache(app, config)

@@ -12,7 +12,9 @@ import {
 import {
   BackendError,
   backendData,
-  backendFetch,
+  backendRequired,
+  backendResult,
+  createBackendClient,
   browserUser,
   checkOrigin,
   jsonData,
@@ -22,7 +24,21 @@ import {
   SESSION_COOKIE,
   setSession,
 } from "@/lib/api/server";
-import type { CurrentUser } from "@/lib/api/types";
+import {
+  authConfig,
+  authRegister,
+  authLogin,
+  authForgotPassword,
+  authResetPassword,
+  authResendVerification,
+  authVerifyEmail,
+  getCurrentUser,
+  updateCurrentUser,
+  changePassword,
+  changeEmail,
+  uploadProfilePhoto,
+  getProfilePhoto,
+} from "@/lib/api/generated/sdk.gen";
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -34,25 +50,24 @@ async function handle(request: NextRequest, context: Context) {
     if (method !== "GET") checkOrigin(request);
     if (path === "auth/config" && method === "GET") {
       return jsonData(
-        await backendData<{ email_verification_enabled: boolean }>(
-          "/api/auth/config",
-        ),
+        backendRequired(await authConfig({ client: createBackendClient() })),
       );
     }
     if (path === "auth/resend-verification" && method === "POST") {
       const input = forgotPasswordSchema.safeParse(await readJson(request));
       if (!input.success)
         throw new BackendError(400, "Adresse e-mail invalide.");
-      await backendData("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...input.data,
-          language: request.headers.get("accept-language")?.startsWith("en")
-            ? "en"
-            : "fr",
+      backendData(
+        await authResendVerification({
+          client: createBackendClient(),
+          body: {
+            ...input.data,
+            language: request.headers.get("accept-language")?.startsWith("en")
+              ? "en"
+              : "fr",
+          },
         }),
-      });
+      );
       return jsonData(null, 202);
     }
     if (path === "auth/verify-email" && method === "POST") {
@@ -62,11 +77,12 @@ async function handle(request: NextRequest, context: Context) {
           400,
           "Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.",
         );
-      await backendData("/api/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input.data),
-      });
+      backendData(
+        await authVerifyEmail({
+          client: createBackendClient(),
+          body: input.data,
+        }),
+      );
       const response = jsonData(null);
       setSession(response, "", 0);
       return response;
@@ -91,40 +107,40 @@ async function handle(request: NextRequest, context: Context) {
             "Vérifiez les informations saisies.",
         );
       if (path === "auth/register") {
-        const registration = await backendData<{
-          verification_required: boolean;
-        }>("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...parsed.data,
-            language: request.headers.get("accept-language")?.startsWith("en")
-              ? "en"
-              : "fr",
-            email:
-              "email" in parsed.data ? parsed.data.email || null : undefined,
+        const registration = backendRequired(
+          await authRegister({
+            client: createBackendClient(),
+            body: {
+              ...parsed.data,
+              language: request.headers.get("accept-language")?.startsWith("en")
+                ? "en"
+                : "fr",
+              email:
+                "email" in parsed.data && typeof parsed.data.email === "string"
+                  ? parsed.data.email || null
+                  : undefined,
+            },
           }),
-        });
+        );
         if (registration.verification_required) {
           const response = jsonData(null, 202);
           setSession(response, "", 0);
           return response;
         }
       }
-      const login = await backendData<{ token: string }>("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: parsed.data.username,
-          password: parsed.data.password,
+      const login = backendRequired(
+        await authLogin({
+          client: createBackendClient(),
+          body: {
+            username: parsed.data.username,
+            password: parsed.data.password,
+          },
         }),
-      });
+      );
       if (typeof login.token !== "string" || login.token.length > 4096)
         throw new BackendError(502, "Réponse de connexion invalide.");
-      const user = await backendData<CurrentUser>(
-        "/api/user/me",
-        {},
-        login.token,
+      const user = backendRequired(
+        await getCurrentUser({ client: createBackendClient(login.token) }),
       );
       const response = jsonData(browserUser(user));
       setSession(response, login.token);
@@ -138,11 +154,12 @@ async function handle(request: NextRequest, context: Context) {
       const language = request.headers.get("accept-language")?.startsWith("en")
         ? "en"
         : "fr";
-      await backendData("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...input.data, language }),
-      });
+      backendData(
+        await authForgotPassword({
+          client: createBackendClient(),
+          body: { ...input.data, language },
+        }),
+      );
       return jsonData(null, 202);
     }
     if (path === "auth/reset-password" && method === "POST") {
@@ -153,17 +170,18 @@ async function handle(request: NextRequest, context: Context) {
           input.error.issues[0]?.message ||
             "Vérifiez les informations saisies.",
         );
-      await backendData("/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept-Language": request.headers.get("accept-language") || "fr",
-        },
-        body: JSON.stringify({
-          token: input.data.token,
-          new_password: input.data.new_password,
+      backendData(
+        await authResetPassword({
+          client: createBackendClient(),
+          headers: {
+            "Accept-Language": request.headers.get("accept-language") || "fr",
+          },
+          body: {
+            token: input.data.token,
+            new_password: input.data.new_password,
+          },
         }),
-      });
+      );
       const response = jsonData(null);
       setSession(response, "", 0);
       return response;
@@ -183,23 +201,24 @@ async function handle(request: NextRequest, context: Context) {
           input.error.issues[0]?.message ||
             "Vérifiez les informations saisies.",
         );
-      const { current_password } = input.data;
-      const body =
-        "new_password" in input.data
-          ? { current_password, new_password: input.data.new_password }
-          : { current_password, email: input.data.email };
-      await backendData(
-        password ? "/api/user/me/password" : "/api/user/me/email",
-        {
-          method: password ? "PUT" : "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept-Language": request.headers.get("accept-language") || "fr",
-          },
-          body: JSON.stringify(body),
-        },
-        token,
-      );
+      const client = createBackendClient(token);
+      const headers = {
+        "Accept-Language": request.headers.get("accept-language") || "fr",
+      };
+      if ("new_password" in input.data) {
+        backendData(
+          await changePassword({
+            client,
+            headers,
+            body: {
+              current_password: input.data.current_password,
+              new_password: input.data.new_password,
+            },
+          }),
+        );
+      } else {
+        backendData(await changeEmail({ client, headers, body: input.data }));
+      }
       const response = jsonData(null);
       setSession(response, "", 0);
       return response;
@@ -210,7 +229,9 @@ async function handle(request: NextRequest, context: Context) {
       try {
         return jsonData(
           browserUser(
-            await backendData<CurrentUser>("/api/user/me", {}, token),
+            backendRequired(
+              await getCurrentUser({ client: createBackendClient(token) }),
+            ),
           ),
         );
       } catch (error) {
@@ -233,14 +254,11 @@ async function handle(request: NextRequest, context: Context) {
           400,
           "Le téléphone doit contenir au maximum 32 caractères.",
         );
-      const user = await backendData<CurrentUser>(
-        "/api/user/me",
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ telephone: input.data.telephone || null }),
-        },
-        token,
+      const user = backendRequired(
+        await updateCurrentUser({
+          client: createBackendClient(token),
+          body: { telephone: input.data.telephone || null },
+        }),
       );
       return jsonData(browserUser(user));
     }
@@ -250,32 +268,40 @@ async function handle(request: NextRequest, context: Context) {
       if (!type.startsWith("multipart/form-data;"))
         throw new BackendError(415, "Sélectionnez une photo à téléverser.");
       const body = await readBody(request, 6 * 1024 * 1024);
-      await backendData(
-        "/api/user/me/photo",
-        {
-          method: "PUT",
+      let form: FormData;
+      try {
+        form = await new Response(body, {
           headers: { "Content-Type": type },
-          body: body as BodyInit,
-        },
-        token,
-      );
+        }).formData();
+      } catch {
+        throw new BackendError(400, "Sélectionnez une photo à téléverser.");
+      }
+      const photo = form.get("photo");
+      if (!(photo instanceof File))
+        throw new BackendError(400, "Sélectionnez une photo à téléverser.");
+      const client = createBackendClient(token);
+      backendData(await uploadProfilePhoto({ client, body: { photo } }));
       return jsonData(
-        browserUser(await backendData<CurrentUser>("/api/user/me", {}, token)),
+        browserUser(backendRequired(await getCurrentUser({ client }))),
       );
     }
     if (path === "profile/photo" && method === "GET") {
       const token = requireSession(request);
-      const user = await backendData<CurrentUser>("/api/user/me", {}, token);
+      const user = backendRequired(
+        await getCurrentUser({ client: createBackendClient(token) }),
+      );
       if (!user.profile_photo_url)
         throw new BackendError(404, "Aucune photo de profil.");
-      const photo = await backendFetch(
-        `/api/user/${encodeURIComponent(user.username)}/photo`,
-        {},
-        token,
+      const photo = backendResult(
+        await getProfilePhoto({
+          client: createBackendClient(token),
+          path: { username: user.username },
+          parseAs: "blob",
+        }),
       );
-      if (!photo.ok)
-        throw new BackendError(photo.status, "Photo indisponible.");
-      return new NextResponse(await photo.arrayBuffer(), {
+      if (!(photo instanceof Blob))
+        throw new BackendError(502, "Photo indisponible.");
+      return new NextResponse(photo, {
         headers: {
           "Content-Type": "image/webp",
           "Cache-Control": "private, no-store",

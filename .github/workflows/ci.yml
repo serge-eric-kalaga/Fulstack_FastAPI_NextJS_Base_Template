@@ -95,6 +95,9 @@ jobs:
       # --frozen refuse de recalculer le verrouillage ; le groupe dev inclut Ruff.
       - name: Installer les dépendances verrouillées
         run: uv sync --frozen --group dev
+      # Cet export ne démarre aucun service et doit correspondre au contrat versionné.
+      - name: Vérifier le contrat OpenAPI
+        run: uv run --frozen python scripts/export_openapi.py --check
       - name: Lint Python
         run: uv run --frozen ruff check --config pyproject.toml . ../scripts
       - name: Tests backend et intégration Redis
@@ -144,6 +147,11 @@ jobs:
         run: |
           npm ci
           uv sync --frozen --project ../backend
+      # Détecter tout oubli de régénération après une modification de route/schéma.
+      - name: Vérifier le contrat et le client généré
+        run: |
+          (cd ../backend && uv run --frozen python scripts/export_openapi.py --check)
+          npm run api:check
       - name: Lint et vérification TypeScript
         run: |
           npm run lint
@@ -186,3 +194,4 @@ jobs:
           # Comptes temporaires : session, origine, profil, photo et changements d’identifiants.
           npm run test:api
           npm run test:passwords
+          npm run test:generated-api

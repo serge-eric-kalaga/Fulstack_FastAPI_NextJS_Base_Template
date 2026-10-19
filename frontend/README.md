@@ -82,7 +82,7 @@ Le flux de référence est : **composant → hook Query → service métier → 
 Exemple pour un module de projets (les routes `/projects` ci-dessous sont des exemples à implémenter, elles ne sont pas fournies par le template) :
 
 1. Créer les modèles, schémas et routes FastAPI, avec authentification et autorisations sur les projets. Si le schéma change, générer et appliquer une migration Alembic.
-2. Ajouter explicitement les branches `GET /api/projects` et `POST /api/projects` à `src/app/api/[...path]/route.ts`. Utiliser `requireSession(request)` puis `backendData` avec le token côté serveur. La vérification d’origine est déjà appliquée aux écritures ; utiliser `readJson` et valider le corps avant de transmettre la demande. Aucun proxy vers une URL arbitraire.
+2. Ajouter explicitement les branches `GET /api/projects` et `POST /api/projects` à `src/app/api/[...path]/route.ts`. Utiliser `requireSession(request)`, `createBackendClient(token)`, la fonction SDK générée et `backendRequired` pour extraire la réponse côté serveur. La vérification d’origine est déjà appliquée aux écritures ; utiliser `readJson` et valider le corps avant de transmettre la demande. Aucun proxy vers une URL arbitraire.
 3. Définir un service typé dans `src/features/projects/api.ts` :
 
 ```ts
@@ -194,3 +194,89 @@ La page `/confirmer-email` lit le fragment du lien, l’efface de l’URL et att
 ### Contrôles automatiques des pull requests
 
 Le workflow racine `.github/workflows/ci.yml` installe les dépendances avec `npm ci`, exécute ESLint, TypeScript et les tests de traduction, puis construit Next.js. Les tests `npm run test:api` et `npm run test:passwords` s’exécutent sur ce **build de production**, avec une API et une base SQLite jetables. Aucune variable locale ni aucun fichier `.env` de sous-répertoire n’est nécessaire. Voir la section intégration continue du README racine pour les contrôles backend, les migrations et la reproduction locale.
+
+
+## Client API TypeScript généré
+
+Le contrat FastAPI est exporté dans `backend/openapi.json`. **Hey API** (`@hey-api/openapi-ts`, version verrouillée dans `package-lock.json`) génère les modèles TypeScript, les fonctions du SDK et son transport Fetch dans `src/lib/api/generated/`. Le générateur est une dépendance de développement ; le runtime généré est du code source compilé avec Next.js. Aucun service hébergé ni compte Hey API n’est nécessaire.
+
+Le parcours reste :
+
+```text
+Composant → hook TanStack Query → authApi / apiRequest
+          → proxy Next.js → SDK généré → FastAPI
+```
+
+Les composants, les services navigateur de `features/auth/api.ts`, les hooks et les formulaires Zod sont conservés. Le SDK remplace les appels HTTP backend écrits à la main dans le proxy. Les corps, réponses et paramètres de chemin sont désormais inférés depuis les contrats FastAPI. Le type `CurrentUser` est une projection explicite du modèle généré ; `browserUser` sélectionne et normalise les champs exposés au navigateur.
+
+### Régénérer après un changement backend
+
+1. Ajouter/modifier le schéma Pydantic et la route FastAPI. Déclarer un `response_model` précis et un `operation_id` unique et stable (par exemple `listProjects`). Un identifiant stable évite de renommer inutilement les fonctions du SDK lorsqu’on réorganise les fonctions Python. Enregistrer tout nouveau routeur dans l’application.
+2. Exporter le contrat puis régénérer le SDK.
+3. Adapter les appels signalés par TypeScript, conserver la validation Zod des formulaires/du proxy et ajouter explicitement les nouvelles branches autorisées du proxy.
+4. Versionner le contrat et **tout** le dossier généré avec les modifications backend et frontend.
+
+Depuis la racine, avec Docker :
+
+```bash
+# Une fois après intégration du montage OpenAPI dans Compose, si le frontend tourne déjà :
+docker compose up -d --no-deps frontend
+
+# Après chaque changement de route ou de schéma :
+docker compose exec -T backend uv run --frozen python scripts/export_openapi.py
+docker compose exec -T frontend npm run api:generate
+
+# Vérifier le résultat :
+docker compose exec -T backend uv run --frozen python scripts/export_openapi.py --check
+docker compose exec -T frontend npm run api:check
+docker compose exec -T frontend npm run typecheck
+```
+
+Sans Docker, après `uv sync --frozen` dans `backend/` et `npm ci` dans `frontend/` :
+
+```bash
+(cd backend && uv run --frozen python scripts/export_openapi.py)
+(cd frontend && npm run api:generate && npm run api:check && npm run typecheck)
+```
+
+L’export est déterministe : il utilise une configuration dédiée au processus, un titre fixe et aucun serveur actif. `createApp(..., initialise_database=False)` enregistre les mêmes routes sans appeler l’initialisation SQL ; aucun accès SQL, Redis ou SMTP n’est requis. Il ne charge ni ne crée de fichier `.env`. Le montage en lecture seule `backend/openapi.json` donne au conteneur frontend uniquement le contrat public nécessaire à la génération.
+
+`api:generate` utilise `openapi-ts.config.mjs`. **Ne pas modifier les fichiers générés** : la commande peut remplacer leur contenu. Les corrections appartiennent aux schémas/routes, à la configuration ou aux adaptateurs. Les contraintes comme les longueurs ou formats ne deviennent pas toutes des validations JavaScript : garder Zod côté formulaire/proxy et Pydantic côté API.
+
+### Appeler une nouvelle route depuis le proxy
+
+Après génération d’une route FastAPI avec `operation_id="listProjects"`, sa fonction peut s’utiliser ainsi dans la branche correspondante du proxy :
+
+```ts
+import { listProjects } from "@/lib/api/generated/sdk.gen";
+import {
+  backendRequired,
+  createBackendClient,
+  jsonData,
+  requireSession,
+} from "@/lib/api/server";
+
+const token = requireSession(request);
+const client = createBackendClient(token);
+const projects = backendRequired(await listProjects({ client }));
+return jsonData(projects);
+```
+
+Le nom exact est celui produit dans `sdk.gen.ts`. Pour une écriture, valider d’abord `readJson(request)` avec le schéma Zod de la fonctionnalité, puis passer le corps typé au SDK. La protection d’origine du proxy reste appliquée. Ensuite, ajouter le service navigateur avec `apiRequest('/projects')` et son hook TanStack Query, comme les modules existants. La génération n’expose jamais automatiquement une route FastAPI dans le proxy.
+
+### Transport et confidentialité
+
+`createBackendClient(token)` crée une instance par requête ; **ne jamais appeler `setConfig` sur le singleton généré pour y mettre un JWT**. Le module `generated-runtime.ts`, importé par le SDK, porte la barrière `server-only`. Ses fonctions ne peuvent donc pas entrer dans un composant client. Les imports `import type` depuis `generated/types.gen.ts` restent utilisables partout, sans runtime ni jeton.
+
+Le transport conserve `BACKEND_URL` côté serveur, `cache: no-store`, le délai de dix secondes et les erreurs normalisées. Les redirections backend sont refusées. `backendData` extrait une enveloppe dont la donnée peut être nulle ; `backendRequired` exige une donnée non nulle, tandis que `backendResult` prend en charge les réponses brutes comme les photos. Les uploads sont bornés avant décodage multipart, puis sérialisés par le SDK. Les cookies HttpOnly, le contrôle d’origine, la liste des routes autorisées et la projection du profil sont conservés.
+
+### Contrôles automatiques
+
+La CI exécute les deux vérifications :
+
+- `python scripts/export_openapi.py --check` détecte une divergence entre les routes/schémas Python et `backend/openapi.json`.
+- `npm run api:check` régénère le SDK dans un dossier temporaire et compare la liste et le contenu des fichiers, sans modifier le dossier versionné.
+
+Un oubli de régénération fait échouer la PR. `tests/api-contracts.ts`, inclus dans `npm run typecheck`, vérifie notamment que les champs obligatoires et les secrets `writeOnly` restent présents dans les entrées, que les corps inconnus sont refusés et que les paramètres de chemin sont requis. `npm run test:generated-api` couvre l’intégration HTTP, les erreurs multipart et l’isolation de deux comptes lors de vingt requêtes concurrentes. Les tests de parcours existants continuent à couvrir l’authentification, le profil et les photos.
+
+Les fichiers générés sont exclus d’ESLint, mais restent contrôlés par la génération et TypeScript. L’override npm ciblé de `js-yaml` dans le parseur Hey API corrige sa dépendance vulnérable ; le conserver jusqu’à ce que le parseur dépende lui-même d’une version corrigée. Références : [génération FastAPI](https://fastapi.tiangolo.com/fr/advanced/generate-clients/) et [instances personnalisées Hey API](https://heyapi.dev/docs/openapi/typescript/clients/fetch/#createclient).

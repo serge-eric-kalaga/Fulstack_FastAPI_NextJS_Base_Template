@@ -1,3 +1,4 @@
+import type { AuthConfiguration } from "@/lib/api/generated/types.gen";
 import { apiRequest } from "@/lib/api/client";
 import type { CurrentUser } from "@/lib/api/types";
 import type {
@@ -16,8 +17,7 @@ export const authApi = {
     apiRequest<CurrentUser | null>("/session", { signal }),
   login: (body: LoginInput) =>
     apiRequest<CurrentUser>("/auth/login", { method: "POST", body }),
-  config: () =>
-    apiRequest<{ email_verification_enabled: boolean }>("/auth/config"),
+  config: () => apiRequest<AuthConfiguration>("/auth/config"),
   resendVerification: (email: string, language: string) =>
     apiRequest<null>("/auth/resend-verification", {
       method: "POST",

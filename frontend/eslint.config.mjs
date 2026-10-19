@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vérifié par api:check et TypeScript ; ne pas retoucher le runtime généré.
+    "src/lib/api/generated/**",
   ]),
 ]);
 

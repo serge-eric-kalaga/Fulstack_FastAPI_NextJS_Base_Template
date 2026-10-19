@@ -18,6 +18,7 @@ Base réutilisable pour des applications avec une API **FastAPI** et un frontend
 - [Gestion des dépendances](#gestion-des-dépendances)
 - [Tests et vérifications](#tests-et-vérifications)
 - [Intégration continue avec GitHub Actions](#intégration-continue-avec-github-actions)
+- [Client API TypeScript généré](#client-api-typescript-généré)
 
 ## Stack technique
 
@@ -434,7 +435,7 @@ CACHE_ENABLED=false uv run pytest -q
 
 La suite couvre la création et la mise à jour des utilisateurs, les routes de disponibilité et de documentation, les métriques, les handshakes Socket.IO, la validation HTTP, les destinataires e-mail et les échecs SMTP simulés, ainsi que la conservation des logs sur deux chargements du point d’entrée.
 
-Dernière validation réalisée : **59 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
+Dernière validation réalisée : **61 tests réussis sur SQLite et sur MySQL 8.4**, sous Python 3.14 avec Redis 7.4 isolé. Les tests incluent le cache HIT/MISS, les clés par utilisateur, l’authentification sur HIT, l’expiration, les écritures réussies/refusées, les pannes Redis, les photos et leur rollback, ainsi que la génération et l’application d’une future migration Alembic sur une base jetable. Les tests d’e-mail utilisent des mocks et n’effectuent aucun envoi réel. L’exécution sous Python 3.11 reste non testée.
 
 Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance **réservée aux tests**. Sans cette variable, les scénarios d’intégration Redis sont ignorés. Pour les autres tests sans Redis, utiliser `CACHE_ENABLED=false` :
 
@@ -500,7 +501,7 @@ En cas d’échec SMTP, la réponse publique reste générique et le nouveau jet
 
 Routes publiques ajoutées : `POST /api/auth/forgot-password` et `POST /api/auth/reset-password`. Les contrats détaillés sont visibles dans Swagger. Les modèles d’e-mail sont dans `backend/api/html/email/password_reset.html`, `password_changed.html` et `recovery_email_changed.html`. Une modification de l’adresse de récupération notifie son ancienne adresse, si elle existe.
 
-Validation : 59 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
+Validation : 61 tests backend sur SQLite et MySQL avec Redis isolé, dont expiration, rejeu, concurrence, limitation, échec SMTP, adresse privée, rollback d’un doublon et révocation sur cache HIT. Le transport SMTP est neutralisé automatiquement dans la suite de tests ; le parcours navigateur complet est vérifié avec capture locale des messages, sans envoi réel. Les tests HTTP frontend des identifiants utilisent `npm run test:passwords`. Le [guide frontend](frontend/README.md#étendre-les-parcours-des-identifiants) explique comment réutiliser les composants et mutations.
 
 ### Confirmation optionnelle de l’adresse e-mail
 
@@ -542,7 +543,7 @@ Le workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) s’exécute 
 | --- | --- |
 | `Backend (sqlite)` | Installation `uv sync --frozen --group dev`, Ruff, suite Pytest avec Redis réel et vérification des migrations sur SQLite |
 | `Backend (mysql)` | Mêmes contrôles avec MySQL 8.4 et Redis 7.4 jetables, y compris les tests de concurrence et les migrations MySQL |
-| `Frontend` | `npm ci`, ESLint, TypeScript, traductions FR/EN, build de production et tests HTTP `test:api` / `test:passwords` contre Next.js en mode production et une API isolée |
+| `Frontend` | `npm ci`, ESLint, TypeScript, traductions FR/EN, contrat OpenAPI/SDK, build de production et tests HTTP `test:api` / `test:passwords` / `test:generated-api` contre Next.js en mode production et une API isolée |
 
 La CI utilise Python 3.14, Node.js 24 et uv 0.13.1, avec les dépendances des fichiers de verrouillage. Ruff 0.17.1 est une dépendance du groupe `dev`, configurée dans `backend/pyproject.toml` : erreurs Python, imports/variables inutilisés, comparaisons, alias UTC et dépendances FastAPI. L’exception `E402` du package `api/database` conserve les imports différés nécessaires à l’enregistrement des modèles.
 
@@ -564,3 +565,31 @@ uv run --frozen python scripts/check_migrations.py
 Les commandes frontend restent `npm run lint`, `npm run typecheck`, `npm run test:i18n` et `npm run build`. Les tests HTTP demandent un backend disponible et un frontend lancé avec `npm run start` ; les variables `BACKEND_TEST_URL`, `FRONTEND_TEST_URL`, `BACKEND_URL`, `APP_ORIGIN` et `SESSION_COOKIE_SECURE=false` doivent correspondre aux URLs locales utilisées.
 
 Les actions sont référencées par SHA, le jeton GitHub dispose uniquement de `contents: read` et le checkout ne conserve pas ses identifiants. Le déclencheur est [`pull_request`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request), ce qui permet les PR de forks sans exposer de secrets. Les journaux des serveurs HTTP sont affichés si le parcours échoue, puis leurs processus sont arrêtés. Pour rendre ces résultats obligatoires avant une fusion, sélectionner les trois contrôles ci-dessus dans les règles de protection de la branche du dépôt cible.
+
+
+## Client API TypeScript généré
+
+Le template génère un SDK **Hey API** depuis le contrat OpenAPI FastAPI. Le navigateur continue d’utiliser les services `authApi`, `apiRequest` et les hooks TanStack Query. Le proxy Next.js utilise maintenant les fonctions générées pour appeler FastAPI, avec une instance par requête et un JWT conservé côté serveur. Les routes autorisées du proxy, les cookies HttpOnly et les validations Zod restent explicites.
+
+Les fichiers à connaître sont :
+
+| Fichier | Rôle |
+| --- | --- |
+| `backend/scripts/export_openapi.py` | Export déterministe hors ligne, sans initialiser la base ni contacter Redis/SMTP |
+| `backend/openapi.json` | Contrat public versionné des routes et schémas FastAPI |
+| `frontend/openapi-ts.config.mjs` | Configuration du générateur et du runtime Fetch |
+| `frontend/src/lib/api/generated/` | Types, fonctions et transport générés ; ne pas modifier à la main |
+| `frontend/src/lib/api/generated-runtime.ts` | Barrière `server-only` du SDK |
+| `frontend/src/lib/api/server.ts` | Instances isolées, timeout, normalisation des erreurs et projection des réponses |
+
+Après ajout ou modification d’une route, choisir un `operation_id` stable, définir un `response_model` précis, puis exécuter depuis la racine :
+
+```bash
+docker compose exec -T backend uv run --frozen python scripts/export_openapi.py
+docker compose exec -T frontend npm run api:generate
+docker compose exec -T frontend npm run typecheck
+```
+
+Recréer le frontend avec `docker compose up -d --no-deps frontend` si son montage OpenAPI n’est pas encore appliqué. Sans Docker : `(cd backend && uv run --frozen python scripts/export_openapi.py)`, puis `(cd frontend && npm run api:generate && npm run typecheck)`. Versionner le contrat, le SDK généré et les adaptations des appels ensemble. Aucune nouvelle variable d’environnement n’est nécessaire.
+
+La CI refuse un export obsolète avec `export_openapi.py --check` et un SDK obsolète avec `npm run api:check`. Elle vérifie aussi les contrats TypeScript et les parcours HTTP du SDK, dont l’isolation des sessions concurrentes. La génération seule ne publie aucune route dans le proxy et ne remplace pas les validations d’exécution Zod/Pydantic. Le [guide frontend](frontend/README.md#client-api-typescript-généré) détaille les commandes, les responsabilités de chaque couche et l’ajout d’une fonctionnalité.

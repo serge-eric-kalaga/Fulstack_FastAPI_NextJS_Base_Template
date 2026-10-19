@@ -1,5 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "./generated/client";
+import type { CurrentUserModel } from "./generated/types.gen";
 import type { CurrentUser } from "./types";
 
 export const SESSION_COOKIE = "template_session";
@@ -12,53 +14,83 @@ export class BackendError extends Error {
   }
 }
 
-/** Appels uniquement serveur : aucun jeton ni URL interne transmis au navigateur. */
-export async function backendFetch(
-  path: string,
-  options: RequestInit = {},
-  token?: string,
-) {
-  const base = process.env.BACKEND_URL || "http://127.0.0.1:8080";
-  const headers = new Headers(options.headers);
-  headers.set("Accept", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  try {
-    return await fetch(new URL(path, base), {
-      ...options,
-      headers,
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch {
+/** Une instance par requête : aucun JWT n’est conservé dans le singleton généré. */
+export function createBackendClient(token?: string) {
+  return createClient({
+    baseUrl: process.env.BACKEND_URL || "http://127.0.0.1:8080",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    fetch: (request) =>
+      fetch(request, {
+        cache: "no-store",
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      }),
+  });
+}
+
+/** Normaliser les erreurs HTTP/réseau du SDK sans modifier le contrat du proxy navigateur. */
+export function backendResult<T>(result: {
+  data?: T;
+  error?: unknown;
+  response?: Response;
+}): T {
+  if (!result.response)
     throw new BackendError(
       502,
       "Le service est temporairement indisponible. Réessayez dans un instant.",
     );
-  }
-}
-
-export async function backendData<T>(
-  path: string,
-  options: RequestInit = {},
-  token?: string,
-): Promise<T> {
-  const response = await backendFetch(path, options, token);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const status = response.status === 403 ? 401 : response.status;
+  if (!result.response.ok) {
+    const status =
+      result.response.status === 403 ? 401 : result.response.status;
+    const error = result.error;
     const message =
       status === 401
         ? "Identifiant ou mot de passe incorrect, ou session expirée."
         : status >= 500
           ? "Le service est temporairement indisponible."
-          : typeof body?.message === "string"
-            ? body.message
+          : error &&
+              typeof error === "object" &&
+              "message" in error &&
+              typeof error.message === "string"
+            ? error.message
             : "Vérifiez les informations saisies.";
     throw new BackendError(status, message);
   }
-  if (!body || !("data" in body))
+  if (result.data === undefined)
     throw new BackendError(502, "Réponse du service invalide.");
-  return body.data as T;
+  return result.data;
+}
+
+/** Extraire une enveloppe FastAPI, avec les types de réponse inférés par le SDK. */
+export function backendData<T>(result: {
+  data?: { data?: T };
+  error?: unknown;
+  response?: Response;
+}): T {
+  const envelope = backendResult(result);
+  if (
+    !envelope ||
+    typeof envelope !== "object" ||
+    !("data" in envelope) ||
+    envelope.data === undefined
+  )
+    throw new BackendError(502, "Réponse du service invalide.");
+  return envelope.data;
+}
+
+/** Les lectures de profil, de configuration et de login exigent une donnée non nulle. */
+export function backendRequired<T>(result: {
+  data?: { data?: T };
+  error?: unknown;
+  response?: Response;
+}): NonNullable<T> {
+  const value = backendData(result);
+  if (value === null || value === undefined)
+    throw new BackendError(502, "Réponse du service invalide.");
+  return value;
 }
 
 export function jsonData(data: unknown, status = 200) {
@@ -147,16 +179,16 @@ export async function readJson(request: NextRequest) {
   }
 }
 
-export function browserUser(user: CurrentUser): CurrentUser {
+export function browserUser(user: CurrentUserModel): CurrentUser {
   const version = user.profile_photo_url
     ? new URL(user.profile_photo_url, "http://backend").searchParams.get("v")
     : null;
   return {
     username: user.username,
-    email: user.email,
-    email_verified_at: user.email_verified_at,
-    telephone: user.telephone,
-    last_login_at: user.last_login_at,
+    email: user.email ?? null,
+    email_verified_at: user.email_verified_at ?? null,
+    telephone: user.telephone ?? null,
+    last_login_at: user.last_login_at ?? null,
     profile_photo_url: user.profile_photo_url
       ? `/api/profile/photo${version ? `?v=${encodeURIComponent(version)}` : ""}`
       : null,

@@ -25,3 +25,11 @@ class ConfirmEmail(BaseModel):
         max_length=43,
         description="Jeton de confirmation temporaire à usage unique.",
     )
+
+
+class AuthConfiguration(BaseModel):
+    """Options publiques que le frontend utilise pour adapter l’inscription."""
+
+    email_verification_enabled: bool = Field(
+        description="Exiger une confirmation de l’adresse avant la connexion des nouveaux comptes."
+    )

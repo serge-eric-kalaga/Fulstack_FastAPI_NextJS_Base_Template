@@ -11,7 +11,11 @@ from typing import Annotated
 
 
 from fastapi import BackgroundTasks, Request
-from api.schemas.email_verification import ResendConfirmation, ConfirmEmail
+from api.schemas.email_verification import (
+    ResendConfirmation,
+    ConfirmEmail,
+    AuthConfiguration,
+)
 from api.services import email_verification as verificationSVC
 from api.schemas.password import ForgotPassword, ResetPassword
 from api.schemas.response import Response
@@ -21,7 +25,9 @@ from api.services.mail import send_password_changed
 auth_router = APIRouter()
 
 
-@auth_router.post("/login", tags=["AUTH"], response_model=LoginResponse)
+@auth_router.post(
+    "/login", operation_id="authLogin", tags=["AUTH"], response_model=LoginResponse
+)
 async def login(
     credentials: LoginModel, request: Request, db: Annotated[Session, Depends(get_db)]
 ):
@@ -49,6 +55,7 @@ async def docs_login(
 
 @auth_router.post(
     "/forgot-password",
+    operation_id="authForgotPassword",
     tags=["AUTH"],
     status_code=202,
     response_model=Response,
@@ -81,6 +88,7 @@ def forgot_password(
 
 @auth_router.post(
     "/reset-password",
+    operation_id="authResetPassword",
     tags=["AUTH"],
     response_model=Response,
     summary="Réinitialiser le mot de passe avec le lien reçu par e-mail",
@@ -114,8 +122,9 @@ def reset_password(
 
 @auth_router.get(
     "/config",
+    operation_id="authConfig",
     tags=["AUTH"],
-    response_model=Response,
+    response_model=Response[AuthConfiguration],
     summary="Options publiques d’inscription",
 )
 def auth_config(request: Request):
@@ -129,6 +138,7 @@ def auth_config(request: Request):
 
 @auth_router.post(
     "/resend-verification",
+    operation_id="authResendVerification",
     tags=["AUTH"],
     response_model=Response,
     status_code=202,
@@ -156,6 +166,7 @@ def resend_verification(
 
 @auth_router.post(
     "/verify-email",
+    operation_id="authVerifyEmail",
     tags=["AUTH"],
     response_model=Response,
     summary="Confirmer son adresse e-mail",

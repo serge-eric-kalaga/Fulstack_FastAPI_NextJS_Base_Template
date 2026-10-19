@@ -36,6 +36,7 @@ user_router = APIRouter(dependencies=[Depends(getPayload)], tags=["USER"])
 
 @auth_router.post(
     "/register",
+    operation_id="authRegister",
     response_model=Response[RegistrationModel],
     tags=["AUTH"],
     dependencies=[Depends(invalidate_cache("users"))],
@@ -68,7 +69,10 @@ def create_user(
 
 
 @user_router.get(
-    "/me", response_model=Response[CurrentUserModel], summary="Consulter son profil"
+    "/me",
+    operation_id="getCurrentUser",
+    response_model=Response[CurrentUserModel],
+    summary="Consulter son profil",
 )
 def current_user(payload: AuthenticatedPayload, db: DatabaseSession):
     """Retourner le compte du JWT et son dernier horodatage de connexion."""
@@ -77,6 +81,7 @@ def current_user(payload: AuthenticatedPayload, db: DatabaseSession):
 
 @user_router.patch(
     "/me",
+    operation_id="updateCurrentUser",
     response_model=Response[CurrentUserModel],
     dependencies=[Depends(invalidate_cache("users"))],
     summary="Modifier son profil",
@@ -95,7 +100,10 @@ def update_own_profile(
 
 
 @user_router.put(
-    "/me/password", response_model=Response, summary="Modifier son mot de passe"
+    "/me/password",
+    operation_id="changePassword",
+    response_model=Response,
+    summary="Modifier son mot de passe",
 )
 def change_own_password(
     body: ChangePassword,
@@ -132,7 +140,10 @@ def change_own_password(
 
 
 @user_router.patch(
-    "/me/email", response_model=Response, summary="Définir son adresse de récupération"
+    "/me/email",
+    operation_id="changeEmail",
+    response_model=Response,
+    summary="Définir son adresse de récupération",
 )
 def change_own_email(
     body: ChangeEmail,
@@ -247,6 +258,7 @@ def delete_user(
 
 @user_router.put(
     "/me/photo",
+    operation_id="uploadProfilePhoto",
     response_model=Response[UserModel],
     dependencies=[Depends(invalidate_cache("users"))],
     summary="Ajouter ou remplacer sa photo de profil",
@@ -277,6 +289,7 @@ def upload_my_profile_photo(
 
 @user_router.get(
     "/{username}/photo",
+    operation_id="getProfilePhoto",
     summary="Consulter une photo de profil (authentification requise)",
     response_class=BinaryResponse,
     responses={

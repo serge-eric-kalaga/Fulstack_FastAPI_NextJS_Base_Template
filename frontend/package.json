@@ -10,7 +10,10 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:api": "node tests/api-auth.mjs",
     "test:i18n": "node --test tests/i18n.test.mjs",
-    "test:passwords": "node tests/password-api.mjs"
+    "test:passwords": "node tests/password-api.mjs",
+    "api:generate": "node scripts/generate-api.mjs",
+    "api:check": "node scripts/generate-api.mjs --check",
+    "test:generated-api": "node tests/generated-api.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
@@ -27,6 +30,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -42,6 +46,9 @@
   "overrides": {
     "@next/eslint-plugin-next": {
       "fast-glob": "npm:tinyglobby@0.2.17"
+    },
+    "@hey-api/json-schema-ref-parser": {
+      "js-yaml": "4.3.2"
     }
   }
 }
