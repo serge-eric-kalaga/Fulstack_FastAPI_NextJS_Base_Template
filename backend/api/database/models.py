@@ -1,0 +1,72 @@
+from pydantic import field_validator
+from typing import Optional, List
+from api.database import BaseTemplate
+from sqlalchemy import (
+    func,
+    Integer,
+    Boolean,
+    DateTime,
+    String,
+    JSON,
+    ForeignKey,
+    Text,
+    ARRAY,
+    Table,
+    Column,
+    VARCHAR,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    MappedAsDataclass,
+    DeclarativeBase,
+    relationship,
+    WriteOnlyMapped,
+)
+from datetime import datetime, date
+
+
+class Base(MappedAsDataclass, DeclarativeBase):
+    date_creation: Mapped[datetime] = mapped_column(
+        server_default=func.now(), init=False
+    )
+    date_modification: Mapped[datetime] = mapped_column(
+        onupdate=func.now(), nullable=True, init=False
+    )
+
+    def as_dict(self):
+        dict_ = {}
+        for c in self.__table__.columns:
+            dict_[c.name] = (
+                str(getattr(self, c.name))
+                if type(getattr(self, c.name)) is date or datetime
+                else getattr(self, c.name)
+            )
+        if hasattr(self, "historique"):
+            del dict_["historique"]
+        return dict_
+
+
+class User(Base, BaseTemplate):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True, index=True, autoincrement=True, init=False
+    )
+    username: Mapped[str] = mapped_column(
+        VARCHAR(255), nullable=False, unique=True, init=True
+    )
+    telephone: Mapped[str] = mapped_column(VARCHAR(255), nullable=True, init=True)
+    password: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, init=True)
+
+    @field_validator("username")
+    def validate_username(cls, username):
+        if len(username) < 3:
+            raise ValueError("Le username doit etre superieur a 3 caracteres !")
+        return username
+
+    @field_validator("password")
+    def validate_password(cls, password):
+        if len(password) < 8:
+            raise ValueError("Le password doit etre superieur a 8 caracteres !")
+        return password
