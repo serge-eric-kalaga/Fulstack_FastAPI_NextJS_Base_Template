@@ -56,6 +56,66 @@ python3 scripts/init_project.py --name "Ma Boutique" --admin-email admin@example
 
 La commande crée `.env.dev`, `.env.test` et `.env.grafana` à la racine avec les paramètres et secrets nécessaires. Elle refuse de modifier une configuration existante. Voir les [options d’initialisation](#initialiser-un-projet).
 
+### Utiliser les fichiers d’exemple
+
+Deux méthodes sont disponibles : **les initialiseurs génèrent la configuration
+et les secrets**, tandis que les fichiers `.example` servent de modèles pour une
+configuration manuelle. Choisir une méthode avant de créer les fichiers réels.
+Tous ces fichiers restent à la racine ; aucun `.env` n’est nécessaire dans
+`frontend/` ou `backend/`.
+
+| Modèle versionné | Fichier local | Initialiseur |
+| --- | --- | --- |
+| `.env.dev.example` | `.env.dev` | `scripts/init_project.py` |
+| `.env.test.example` | `.env.test` | `scripts/init_project.py` |
+| `.env.grafana.example` | `.env.grafana` | `scripts/init_project.py` ou `scripts/init_monitoring.py` |
+| `.env.prod.example` | `.env.prod` | `scripts/init_production.py` |
+| `.env.grafana.prod.example` | `.env.grafana.prod` | `scripts/init_monitoring.py --production` |
+
+Pour configurer manuellement une nouvelle copie, copier uniquement les modèles
+nécessaires. L’option `-n` évite d’écraser les fichiers existants :
+
+```bash
+# Développement et tests
+cp -n .env.dev.example .env.dev
+cp -n .env.test.example .env.test
+# Monitoring optionnel
+cp -n .env.grafana.example .env.grafana
+# Production, si nécessaire
+cp -n .env.prod.example .env.prod
+cp -n .env.grafana.prod.example .env.grafana.prod
+```
+
+Remplacer chaque `CHANGE_ME` par un secret distinct, par exemple avec
+`python3 -c "import secrets; print(secrets.token_hex(32))"`. Reporter le même mot
+de passe MySQL dans `MYSQL_PASSWORD` et `DATABASE_URL`, et le même mot de passe
+RabbitMQ dans `RABBITMQ_DEFAULT_PASS` et `CELERY_BROKER_URL`. Adapter les noms de
+projet, adresses e-mail, paramètres SMTP et domaines. Utiliser des secrets
+indépendants pour la production. Sur macOS/Linux, restreindre les permissions avec
+`chmod 600 .env.dev .env.test` et faire de même pour les autres fichiers créés.
+
+Les fichiers réels sont ignorés par Git ; seuls les `.example` sont versionnés.
+Ne pas recopier de secrets locaux dans les modèles. La configuration de test
+utilise SQLite et un broker mémoire, distincts des services applicatifs.
+
+Les initialiseurs évitent cette préparation manuelle :
+
+```bash
+# Nouvelle copie : crée .env.dev, .env.test et .env.grafana
+python3 scripts/init_project.py --name "Ma Boutique" --admin-email admin@example.com
+# Crée .env.prod avec ses propres secrets
+python3 scripts/init_production.py --name "Ma Boutique" --domain app.example.com --admin-email admin@example.com
+# Complète uniquement les paramètres de monitoring manquants
+python3 scripts/init_monitoring.py
+python3 scripts/init_monitoring.py --production
+```
+
+`init_project.py` et `init_production.py` refusent d’écraser les fichiers existants,
+y compris ceux copiés depuis les exemples. `init_monitoring.py` conserve les
+valeurs déjà présentes : il ne remplace donc pas les `CHANGE_ME` d’un modèle copié.
+Pour une configuration déjà utilisée, modifier les fichiers réels en conservant
+les secrets existants et la cohérence avec les comptes MySQL/RabbitMQ.
+
 ### Lancer l’application
 
 Depuis la racine :
