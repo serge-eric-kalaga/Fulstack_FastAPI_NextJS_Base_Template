@@ -5,6 +5,7 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 ## Sommaire
 
 - [Fonctionnalités](#fonctionnalités)
+- [Documentation et exemples](#documentation-et-exemples)
 - [Démarrage rapide](#démarrage-rapide)
 - [Initialiser un projet](#initialiser-un-projet)
 - [Production](#production)
@@ -22,6 +23,9 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 - [Logs et monitoring](#logs-et-monitoring)
 - [Rate limiting](#rate-limiting)
 - [Rôles et permissions](#rôles-et-permissions)
+- [Stockage des fichiers](#stockage-des-fichiers)
+- [Pagination, recherche et tri](#pagination-recherche-et-tri)
+- [Tâches en arrière-plan](#tâches-en-arrière-plan)
 - [Gestion des dépendances](#gestion-des-dépendances)
 
 ## Fonctionnalités
@@ -33,6 +37,11 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 - Interface français/anglais et thèmes clair, sombre ou système.
 - Services API et hooks TanStack Query réutilisables.
 - Client TypeScript généré depuis les contrats FastAPI.
+- Administration des utilisateurs, rôles et permissions, avec initialisation d’un super administrateur.
+- Stockage local ou compatible S3, pagination, recherche et tri réutilisables.
+- Limitation des requêtes globale ou par route, avec quotas par compte.
+- Tâches Celery avec RabbitMQ et utilitaires de suivi et de reprise.
+- Accueil présentant le template et guide de réutilisation avec exemples copiables.
 - Cache Redis, invalidation par groupe et migrations Alembic.
 - Socket.IO, métriques Prometheus et Grafana.
 - Tests et contrôles GitHub Actions sur les pull requests.
@@ -40,6 +49,26 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 Le frontend utilise **Next.js, React, TypeScript, Tailwind CSS, React Hook Form et Zod**. Le backend utilise **FastAPI, Pydantic, SQLAlchemy et MySQL**. Les environnements Docker reposent sur **Node.js 24** et **Python 3.14**.
 
 Les dépendances sont définies dans [package.json](frontend/package.json) et [pyproject.toml](backend/pyproject.toml), avec leurs fichiers de verrouillage.
+
+## Documentation et exemples
+
+Le bouton **Consulter la documentation** sur l’accueil ouvre le [guide du template](http://localhost:3000/documentation), accessible sans connexion. En production, utiliser `/documentation` sur le domaine du frontend. Le guide est disponible en français et en anglais, avec les thèmes clair/sombre et une mise en page adaptée au mobile.
+
+Les exemples affichent leur fichier cible, leur langage et un bouton **Copier** avec une confirmation discrète. Le guide explique comment réutiliser les modules existants dans une nouvelle fonctionnalité :
+
+| Sujet | Exemples et points de branchement |
+| --- | --- |
+| [Services API](http://localhost:3000/documentation#api) | `apiRequest`, données retournées, erreurs et service par fonctionnalité |
+| [Hooks et état](http://localhost:3000/documentation#hooks) | Lecture de session, formulaire de profil et mise à jour ciblée du cache TanStack Query |
+| [Proxy et client généré](http://localhost:3000/documentation#proxy) | Export OpenAPI, génération TypeScript, validation et autorisation explicite des routes |
+| [Permissions et cache](http://localhost:3000/documentation#backend) | Dépendances FastAPI, cache par utilisateur et invalidation après écriture |
+| [Listes paginées](http://localhost:3000/documentation#pagination) | Recherche, tri autorisé et conventions communes frontend/backend |
+| [Tâches en arrière-plan](http://localhost:3000/documentation#tasks) | Déclaration, enregistrement dans le worker, publication et suivi |
+| [Rate limiting](http://localhost:3000/documentation#rate-limiting) | Quotas sur une route, un routeur ou l’application, limites par compte et erreurs 429/503 |
+| [Stockage local/S3](http://localhost:3000/documentation#storage) | Dépôt, lecture et suppression de documents privés, configuration S3 et envoi multipart côté navigateur |
+| [E-mails](http://localhost:3000/documentation#emails) | Schéma Pydantic, route SMTP, configuration STARTTLS et variante Celery |
+
+Les routes présentées sont des exemples à créer dans votre projet ; elles ne sont pas installées dans l’API. Le guide indique comment enregistrer leur routeur, adapter les schémas et les permissions, puis les relier au proxy Next.js. Garder les variables d’environnement à la racine et vérifier les exemples avec des services isolés et des fichiers temporaires.
 
 ## Démarrage rapide
 
@@ -131,6 +160,7 @@ docker compose --env-file .env.dev exec -T backend uv run --frozen alembic upgra
 | Service | Adresse |
 | --- | --- |
 | Frontend | [localhost:3000](http://localhost:3000) |
+| Guide du template | [localhost:3000/documentation](http://localhost:3000/documentation) |
 | API FastAPI | [localhost:8080](http://localhost:8080) |
 | Documentation Swagger | [localhost:8080/docs](http://localhost:8080/docs) |
 | OpenAPI | [localhost:8080/openapi.json](http://localhost:8080/openapi.json) |
@@ -453,7 +483,7 @@ Voir le [guide du client généré](frontend/README.md#client-api-typescript-gé
 2. Définir les routes FastAPI et leurs autorisations, avec un `response_model` précis et un `operation_id` stable.
 3. Générer une migration si le schéma SQL change, puis régénérer le contrat OpenAPI et le SDK.
 4. Ajouter explicitement les branches nécessaires au proxy Next.js, avec validation des entrées et authentification.
-5. Créer le service navigateur et ses hooks TanStack Query ; invalider les requêtes concernées après une écriture.
+5. Créer le service navigateur et ses hooks TanStack Query ; mettre à jour les éléments connus avec `setQueryData` et invalider uniquement les listes affectées par une écriture.
 6. Construire les composants et formulaires, compléter les traductions FR/EN et couvrir le parcours par des tests.
 
 Le [guide frontend](frontend/README.md#ajouter-une-fonctionnalité-avec-les-services-api-et-tanstack-query) présente un exemple de module. Pour les styles, utiliser la palette de `frontend/src/app/globals.css` afin de respecter les thèmes clair et sombre.
@@ -981,8 +1011,11 @@ de rôle/permission, mais ne remplace pas les règles métier de propriété des
 
 ## Stockage des fichiers
 
-Le stockage reste local par défaut (`STORAGE_BACKEND=local`), dans
-`PROFILE_PHOTO_DIR`. Pour un bucket privé S3 ou compatible, renseigner les
+Les photos utilisent le stockage local par défaut (`STORAGE_BACKEND=local`), dans
+`PROFILE_PHOTO_DIR`. Les classes `LocalStorage` et `S3Storage` sont réutilisables
+pour d’autres fichiers ; `profile_storage(config)` reste dédié aux photos. Pour
+une nouvelle ressource, définir une dépendance avec sa propre racine locale et
+ses règles d’accès, comme dans le [guide des documents privés](http://localhost:3000/documentation#storage). Pour un bucket privé S3 ou compatible, renseigner les
 variables suivantes dans `.env.dev` ou `.env.prod`, puis recréer backend et worker :
 
 ```dotenv

@@ -6,20 +6,13 @@ import { useSession } from "./hooks";
 export function HomeActions() {
   const { t } = useI18n();
   const session = useSession();
-  if (session.isPending)
-    return (
-      <div
-        className="skeleton hero-action-skeleton"
-        aria-label={t("Chargement de la session")}
-      />
-    );
   return (
     <div className="hero-actions">
       <Link
         className="button button-primary button-large"
-        href={session.data ? "/profil" : "/inscription"}
+        href="/documentation"
       >
-        {session.data ? t("Ouvrir mon profil") : t("Tester l’inscription")}
+        {t("Consulter la documentation")}
         <ArrowRight size={18} />
       </Link>
       <Link
