@@ -7,12 +7,16 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     VARCHAR,
+    Table,
+    Column,
+    ForeignKey,
 )
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
     MappedAsDataclass,
     DeclarativeBase,
+    relationship,
 )
 from datetime import datetime, date
 
@@ -36,6 +40,78 @@ class Base(MappedAsDataclass, DeclarativeBase):
         if hasattr(self, "historique"):
             del dict_["historique"]
         return dict_
+
+
+user_roles = Table(
+    "user_role",
+    Base.metadata,
+    Column("user_id", ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", ForeignKey("role.id", ondelete="CASCADE"), primary_key=True),
+)
+role_permissions = Table(
+    "role_permission",
+    Base.metadata,
+    Column("role_id", ForeignKey("role.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "permission_id",
+        ForeignKey("permission.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+user_permissions = Table(
+    "user_permission",
+    Base.metadata,
+    Column("user_id", ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "permission_id",
+        ForeignKey("permission.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
+class Role(Base):
+    """Rôle nommé, sans privilège implicite lié à son nom."""
+
+    __tablename__ = "role"
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    name: Mapped[str] = mapped_column(VARCHAR(100), unique=True)
+    users: Mapped[list["User"]] = relationship(
+        secondary=user_roles,
+        back_populates="roles",
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    permissions: Mapped[list["Permission"]] = relationship(
+        secondary=role_permissions,
+        back_populates="roles",
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+
+class Permission(Base):
+    """Permission métier explicite, par exemple reports.read ou reports.export."""
+
+    __tablename__ = "permission"
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    name: Mapped[str] = mapped_column(VARCHAR(100), unique=True)
+    roles: Mapped[list[Role]] = relationship(
+        secondary=role_permissions,
+        back_populates="permissions",
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    users: Mapped[list["User"]] = relationship(
+        secondary=user_permissions,
+        back_populates="permissions",
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
 
 class User(Base, BaseTemplate):
@@ -82,6 +158,21 @@ class User(Base, BaseTemplate):
     )
     email_verification_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(), nullable=True, init=False, default=None
+    )
+
+    roles: Mapped[list[Role]] = relationship(
+        secondary=user_roles,
+        back_populates="users",
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    permissions: Mapped[list[Permission]] = relationship(
+        secondary=user_permissions,
+        back_populates="users",
+        init=False,
+        repr=False,
+        compare=False,
     )
 
     @property

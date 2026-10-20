@@ -20,6 +20,7 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 - [Tests et qualité](#tests-et-qualité)
 - [Intégration continue](#intégration-continue)
 - [Logs et monitoring](#logs-et-monitoring)
+- [Rôles et permissions](#rôles-et-permissions)
 - [Gestion des dépendances](#gestion-des-dépendances)
 
 ## Fonctionnalités
@@ -670,6 +671,92 @@ python3 scripts/check_monitoring.py --env-file .env.grafana
 ```
 
 Le contrôle attend les cibles, les métriques applicatives, les quatre dashboards, les logs et le signal Watchdog dans Alertmanager. Utiliser `--grafana`, `--prometheus` et `--alertmanager` pour des ports différents. Les tests des seuils et délais des alertes sont exécutables avec `promtool test rules monitoring/prometheus/tests/rules.yml` ; la CI vérifie aussi la stack de production.
+
+## Rôles et permissions
+
+Le module `backend/api/services/authorization.py` fournit les contrôles réutilisables.
+Un utilisateur peut avoir plusieurs rôles et des permissions directes. Ses droits
+sont l’union des permissions directes et de celles accordées par ses rôles. Les
+noms sont explicites, par exemple `editor`, `reports.read`, `reports.export`.
+Le rôle `admin` n’accorde aucune permission implicite et aucun compte n’est promu
+à l’inscription. Les droits sont lus en base à chaque contrôle, sans les déduire
+des claims du JWT : une révocation prend effet à la prochaine requête.
+
+### Protéger les routes
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends
+from api.database import User
+from api.services.authorization import require_roles, require_permissions, require_access
+
+router = APIRouter()
+
+# Un des rôles suffit ; utiliser match="all" pour exiger les deux.
+@router.get("/administration", dependencies=[Depends(require_roles("admin", "editor"))])
+def administration():
+    return {"ok": True}
+
+# Toutes les permissions sont exigées ; match="any" accepte une seule permission.
+ExportUser = Annotated[User, Depends(require_permissions("reports.read", "reports.export"))]
+
+@router.post("/reports/export")
+def export_report(user: ExportUser):
+    return {"requested_by": user.username}
+
+# Rôle ET permission. mode="any" permet rôle OU permission.
+@router.post("/reports/publish", dependencies=[Depends(require_access(
+    roles=("editor",), permissions=("reports.publish",), mode="all",
+))])
+def publish_report():
+    return {"ok": True}
+```
+
+Ces dépendances réutilisent la validation existante du JWT, de la session et de
+l’adresse e-mail. L’absence de jeton retourne HTTP 401, un droit insuffisant HTTP
+403. `require_access` combine les groupes avec `mode` ; `role_match` (défaut `any`)
+et `permission_match` (défaut `all`) règlent chaque groupe. Une règle vide ou un
+nom invalide est refusé lors de sa déclaration. Il n’y a ni wildcard ni héritage
+entre rôles. `isAdmin` reste disponible pour le code existant et vérifie maintenant
+le rôle `admin` en base.
+
+### Créer et attribuer des droits
+
+Après application des migrations, effectuer ces opérations dans un script serveur
+ou une fonctionnalité d’administration elle-même protégée :
+
+```python
+from sqlalchemy.orm import Session
+from api.database import User, engine
+from api.services.authorization import (
+    create_role, create_permission, grant_role, grant_permission,
+)
+
+with Session(engine) as db:
+    editor = create_role(db, "editor")
+    create_permission(db, "reports.read")
+    create_permission(db, "reports.export")
+    grant_permission(db, editor, "reports.read")
+    user = User.get(db=db, username="utilisateur_existant")
+    grant_role(db, user, "editor")
+    grant_permission(db, user, "reports.export")
+    db.commit()
+```
+
+`create_role` et `create_permission` réutilisent les entrées existantes.
+`grant_role` et `grant_permission` refusent un nom inconnu et évitent les liens en
+double. `revoke_role` et `revoke_permission` retirent les liens demandés. Retirer
+une permission directe ne retire pas celle héritée d’un rôle. Ces utilitaires
+font un flush, mais laissent le commit/rollback à l’appelant. Pour un contrôle
+métier interne, utiliser `has_role(db, user, ...)`, `has_permission(db, user, ...)`
+ou `get_access(db, user)`.
+
+La migration `0004_roles_permissions` crée les rôles, permissions et associations,
+sans modifier les comptes existants. Elle est appliquée par les commandes Alembic
+et le parcours de déploiement habituels. Les routes métier doivent déclarer leurs
+propres dépendances ; aucun endpoint public d’attribution des droits n’est fourni.
+Les contrôles de rôle/permission ne remplacent pas la vérification du propriétaire
+d’une ressource.
 
 ## Stockage des fichiers
 

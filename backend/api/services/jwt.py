@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 from api.configs.config import Setting
 from jose import jwt, JWTError
-from werkzeug.exceptions import Unauthorized, Forbidden
+from werkzeug.exceptions import Forbidden
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, Request
+from fastapi import Depends, Request, HTTPException
 from typing import Annotated
 from api.database import get_db, User, Session
 from api.configs.logging import logResponse
@@ -55,8 +55,14 @@ def getPayload(
     return payload
 
 
-def isAdmin(token: Annotated[dict, Depends(getPayload)]):
-    """Autoriser uniquement le rôle admin ; lever HTTP 401 pour un rôle insuffisant."""
-    if token["role"] == "admin":
-        return token
-    raise Unauthorized("Privileges insuffisants")
+def isAdmin(
+    token: Annotated[dict, Depends(getPayload)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Compatibilité : vérifier le rôle admin en base, jamais un claim fourni par le JWT."""
+    from api.services.authorization import has_role
+
+    user = User.get(db=db, username=token["username"])
+    if not has_role(db, user, "admin"):
+        raise HTTPException(403, "Privilèges insuffisants")
+    return token
