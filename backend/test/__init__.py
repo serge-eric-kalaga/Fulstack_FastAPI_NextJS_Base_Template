@@ -27,6 +27,10 @@ os.environ["SECRET_KEY"] = _test_values.get("SECRET_KEY") or secrets.token_hex(3
 os.environ["JWT_SECRET"] = _test_values.get("JWT_SECRET") or secrets.token_hex(32)
 
 
+# Aucun test unitaire ne publie implicitement vers le broker applicatif.
+os.environ["CELERY_BROKER_URL"] = "memory://"
+os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
+
 # Le cache applicatif n’est jamais utilisé par défaut. Les fixtures Redis
 # n’activent que TEST_REDIS_URL, sur un préfixe propre à cette session de tests.
 os.environ["CACHE_ENABLED"] = "false"

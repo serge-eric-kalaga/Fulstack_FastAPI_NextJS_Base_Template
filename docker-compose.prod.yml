@@ -48,6 +48,44 @@ services:
       retries: 10
     logging: *logging
 
+  # Broker dédié : le cache peut être vidé/évincé sans perdre les tâches.
+  task-broker:
+    image: rabbitmq:4.1-alpine
+    hostname: task-broker
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Configurer le compte du broker}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Configurer le mot de passe du broker}
+    volumes: [task_broker_data:/var/lib/rabbitmq]
+    networks: [private]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  worker:
+    <<: *backend
+    restart: unless-stopped
+    command: [celery, -A, api.services.background:celery_app, worker, --loglevel=INFO, --concurrency=2, --hostname=worker@%h]
+    volumes: [backend_uploads:/app/static/uploads]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      task-broker:
+        condition: service_healthy
+    stop_grace_period: 330s
+    healthcheck:
+      test: [CMD-SHELL, 'celery -A api.services.background:celery_app inspect ping --destination "worker@$$HOSTNAME" --timeout 5 | grep -q pong']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   migrate:
     <<: *backend
     restart: "no"
@@ -121,6 +159,7 @@ networks:
   edge:
 
 volumes:
+  task_broker_data:
   mysql_data:
   backend_uploads:
   backend_logs:

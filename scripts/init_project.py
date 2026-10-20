@@ -65,6 +65,7 @@ def configurations(
     """Générer des secrets indépendants, avec des identifiants cohérents entre services."""
     database = slug.replace("-", "_")
     database_password = secrets.token_hex(32)
+    broker_password = secrets.token_hex(32)
     dev = {
         "COMPOSE_PROJECT_NAME": slug,
         "APP_NAME": name,
@@ -85,6 +86,10 @@ def configurations(
         "REDIS_PREFIX": f"{slug}:dev:v1",
         "CACHE_ENABLED": "true",
         "CACHE_TTL_SECONDS": "60",
+        "CELERY_BROKER_URL": f"amqp://worker:{broker_password}@task-broker:5672//",
+        "CELERY_RESULT_BACKEND": "redis://redis:6379/1",
+        "RABBITMQ_DEFAULT_USER": "worker",
+        "RABBITMQ_DEFAULT_PASS": broker_password,
         "FRONTEND_URL": "http://localhost:3000",
         "BACKEND_URL": "http://127.0.0.1:8080",
         "APP_ORIGIN": "http://localhost:3000",
@@ -118,6 +123,8 @@ def configurations(
         "REDIS_URL": "",
         "REDIS_DATABASE_URL": "",
         "REDIS_PREFIX": f"{slug}:test:v1",
+        "CELERY_BROKER_URL": "memory://",
+        "CELERY_RESULT_BACKEND": "cache+memory://",
         "EMAIL_VERIFICATION_ENABLED": "false",
         "EMAIL_HOST": "127.0.0.1",
         "EMAIL_PORT": "9",

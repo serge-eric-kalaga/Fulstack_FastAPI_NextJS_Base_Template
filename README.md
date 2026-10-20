@@ -611,6 +611,60 @@ python3 scripts/check_monitoring.py --env-file .env.grafana
 
 Le contrôle attend les cibles, les métriques applicatives, les quatre dashboards, les logs et le signal Watchdog dans Alertmanager. Utiliser `--grafana`, `--prometheus` et `--alertmanager` pour des ports différents. Les tests des seuils et délais des alertes sont exécutables avec `promtool test rules monitoring/prometheus/tests/rules.yml` ; la CI vérifie aussi la stack de production.
 
+## Tâches en arrière-plan
+
+Le module `backend/api/services/background.py` fournit Celery et les utilitaires
+`background_task`, `enqueue`, `enqueue_async` et `task_status`. RabbitMQ conserve
+les messages sur le volume `task_broker_data`. Le Redis existant conserve les
+résultats sur sa base 1, avec expiration à 24 h ; un résultat peut disparaître lors
+d’un redémarrage ou d’une éviction du cache, sans supprimer la tâche RabbitMQ.
+
+Les initialiseurs préparent ces variables dans les fichiers d’environnement racine :
+
+```dotenv
+RABBITMQ_DEFAULT_USER=worker
+RABBITMQ_DEFAULT_PASS=<secret-aleatoire>
+CELERY_BROKER_URL=amqp://worker:<meme-secret>@task-broker:5672//
+CELERY_RESULT_BACKEND=redis://redis:6379/1
+```
+
+Créer un module de tâches métier et ajouter son chemin Python à `include` dans
+`background.py`, puis redémarrer le worker :
+
+```python
+from api.services.background import background_task, enqueue_async
+
+@background_task(name="reports.generate")
+def generate_report(report_id: int):
+    # Lire les données et générer le rapport de façon idempotente.
+    return {"report_id": report_id}
+
+# Dans une route async, après validation et commit SQL :
+# task_id = await enqueue_async(generate_report, report_id)
+```
+
+Transmettre des identifiants et des valeurs JSON, pas de session SQL ni de Request.
+Lever `TransientTaskError` pour une erreur temporaire : cinq reprises au maximum,
+avec attente exponentielle et jitter. Une erreur de publication est propagée ; la
+route ne doit pas annoncer HTTP 202 si le broker a refusé le message.
+
+```bash
+docker compose --env-file .env.dev up -d --build backend task-broker worker
+docker compose --env-file .env.dev logs -f worker
+# Production
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build backend task-broker worker
+```
+
+Une tâche est acquittée après traitement et peut être redistribuée après une panne.
+Elle recommence depuis le début et peut être exécutée plusieurs fois : rendre les
+effets métier idempotents. Les limites souple/dure sont 270/300 secondes. Ne pas
+supprimer le volume RabbitMQ pour conserver les tâches. Cette base ne fournit pas
+de haute disponibilité ni de transaction atomique entre SQL et la publication.
+
+`task_status(task_id)` retourne l’état et le résultat disponible. Vérifier le
+propriétaire avant de l’exposer ; depuis une route async, utiliser
+`await asyncio.to_thread(task_status, task_id)`.
+
 ## Gestion des dépendances
 
 Depuis `backend/` :
