@@ -17,6 +17,10 @@ class SETTINGS(BaseSettings):
     REDIS_DATABASE_URL: str | None = None  # Ancien nom conservé pour compatibilité.
     REDIS_URL: str | None = None
     REDIS_PREFIX: str = "fullstack:dev:v1"
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_GLOBAL_LIMIT: int = Field(default=300, ge=0)
+    RATE_LIMIT_GLOBAL_WINDOW_SECONDS: int = Field(default=60, ge=1)
+    RATE_LIMIT_FAIL_CLOSED: bool = True
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = Field(default=60, gt=0)
     STORAGE_BACKEND: Literal["local", "s3"] = "local"

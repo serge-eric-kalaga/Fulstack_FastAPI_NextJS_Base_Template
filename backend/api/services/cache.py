@@ -21,7 +21,10 @@ def configure_cache(app, config):
     """Configurer le SDK et conserver le lifespan existant de l’application."""
     app.state.config = config
     sdk = FastAPIRedis(app).caching()
-    if config.CACHE_ENABLED:
+    from api.services.rate_limiting import configure_rate_limiting
+
+    configure_rate_limiting(app, config)
+    if config.CACHE_ENABLED or config.RATE_LIMIT_ENABLED:
         settings = get_settings()
         settings.url = config.REDIS_URL or config.REDIS_DATABASE_URL
         settings.prefix = config.REDIS_PREFIX

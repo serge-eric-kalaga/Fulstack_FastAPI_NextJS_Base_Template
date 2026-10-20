@@ -20,6 +20,7 @@ Une base pour démarrer des applications avec une API FastAPI et un frontend Nex
 - [Tests et qualité](#tests-et-qualité)
 - [Intégration continue](#intégration-continue)
 - [Logs et monitoring](#logs-et-monitoring)
+- [Rate limiting](#rate-limiting)
 - [Rôles et permissions](#rôles-et-permissions)
 - [Gestion des dépendances](#gestion-des-dépendances)
 
@@ -671,6 +672,100 @@ python3 scripts/check_monitoring.py --env-file .env.grafana
 ```
 
 Le contrôle attend les cibles, les métriques applicatives, les quatre dashboards, les logs et le signal Watchdog dans Alertmanager. Utiliser `--grafana`, `--prometheus` et `--alertmanager` pour des ports différents. Les tests des seuils et délais des alertes sont exécutables avec `promtool test rules monitoring/prometheus/tests/rules.yml` ; la CI vérifie aussi la stack de production.
+
+## Rate limiting
+
+Le rate limiting utilise le SDK Redis déjà présent, avec des compteurs atomiques
+partagés entre les workers. Aucun service ou paquet supplémentaire n’est requis.
+La configuration racine et les initialiseurs exposent :
+
+```dotenv
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_GLOBAL_LIMIT=300
+RATE_LIMIT_GLOBAL_WINDOW_SECONDS=60
+RATE_LIMIT_FAIL_CLOSED=true
+```
+
+Le middleware global est branché par `createApp` via la configuration Redis
+existante. Par défaut, il limite chaque pair réseau à 300 requêtes sur 60 secondes,
+toutes routes confondues. `RATE_LIMIT_GLOBAL_LIMIT=0` conserve les dépendances par
+route sans quota global ; `RATE_LIMIT_ENABLED=false` désactive tous les compteurs.
+La limitation fonctionne même avec `CACHE_ENABLED=false`, mais nécessite toujours
+une URL Redis valide (`REDIS_URL`) et le lifespan de l’application.
+
+La même configuration peut être fournie lors de la construction de l’application :
+
+```python
+from api import SETTINGS, createApp
+
+config = SETTINGS()
+config.RATE_LIMIT_GLOBAL_LIMIT = 1000
+config.RATE_LIMIT_GLOBAL_WINDOW_SECONDS = 60
+app = createApp(config)
+```
+
+### Brancher une limite sur une route
+
+```python
+from fastapi import APIRouter, Depends
+from api.services.rate_limiting import rate_limit, user_rate_limit
+
+router = APIRouter()
+
+@router.get("/catalogue", dependencies=[Depends(rate_limit(30, seconds=60))])
+def catalogue():
+    return {"items": []}
+
+# L’identité provient du compte authentifié, pas d’un claim JWT non vérifié.
+@router.post("/exports", dependencies=[Depends(user_rate_limit(5, seconds=60))])
+def export_report():
+    return {"accepted": True}
+```
+
+Par défaut, une limite de route partage son compteur entre les valeurs d’un même
+paramètre de chemin : `/items/1` et `/items/2` utilisent le quota de `/items/{id}`.
+Un `scope` explicite partage un quota entre plusieurs routes :
+
+```python
+exports = APIRouter(dependencies=[Depends(user_rate_limit(10, seconds=60, scope="exports"))])
+```
+
+Pour cumuler deux limites sur la même route, donner un scope distinct à chacune,
+par exemple `rate_limit(5, 10, scope="burst")` et
+`rate_limit(100, 3600, scope="hour")`. Les limites de route s’ajoutent au quota
+global. Elles peuvent également être utilisées dans `FastAPI(dependencies=[...])`
+pour protéger toutes les opérations API ; utiliser un même scope pour un quota
+commun. Contrairement au middleware, ces dépendances ne couvrent pas les routes
+inconnues ou les fichiers statiques. Dans le template, conserver `createApp` pour
+initialiser le client Redis et son lifespan.
+
+### Identifier le client et gérer les refus
+
+Le quota par IP utilise `request.client.host` et ignore les en-têtes
+`X-Forwarded-For` fournis par le client. **Derrière le proxy Next.js, le backend voit
+le proxy : les visiteurs partagent donc son quota IP global.** Adapter ce plafond
+à la charge attendue et utiliser `user_rate_limit` pour les quotas par compte.
+La dépendance utilisateur exige toujours une authentification, même lorsque les
+compteurs sont désactivés. Un identifiant personnalisé, sync ou async, peut être
+fourni via `rate_limit(..., identifier=ma_fonction)` ; il doit provenir d’une
+source vérifiée. Pour une vraie limite par IP visiteur derrière un proxy, configurer
+explicitement la chaîne de proxies de confiance au déploiement ; ne pas simplement
+faire confiance à un en-tête public. Les identités intégrées sont hachées par HMAC
+avant utilisation dans les compteurs Redis.
+
+Un dépassement retourne HTTP **429**, l’enveloppe d’erreur habituelle et
+`Retry-After`. Le backend émet aussi les en-têtes `X-RateLimit-*`. Next.js conserve
+le statut, le message et `Retry-After` vers le navigateur. Avec
+`RATE_LIMIT_FAIL_CLOSED=true`, une défaillance du backend de limitation retourne
+**503** ; avec `false`, la requête est autorisée sans garantie de quota. Ces
+compteurs dépendent de Redis : un redémarrage sans persistance ou une éviction
+peut les réinitialiser. Les protections SQL spécifiques à la récupération du mot
+de passe et à la confirmation d’e-mail restent actives indépendamment.
+
+Le quota global ignore `OPTIONS`, `/metrics`, `/api/healthcheck[/]`, `/ws` et `/ws/...`.
+Les messages WebSocket ne sont pas limités par ces dépendances HTTP. Les tests
+unitaires désactivent les compteurs par défaut et utilisent un backend simulé
+pour leurs recettes HTTP, sans contacter Redis de développement.
 
 ## Rôles et permissions
 

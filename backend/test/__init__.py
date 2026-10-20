@@ -34,6 +34,7 @@ os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
 # Le cache applicatif n’est jamais utilisé par défaut. Les fixtures Redis
 # n’activent que TEST_REDIS_URL, sur un préfixe propre à cette session de tests.
 os.environ["CACHE_ENABLED"] = "false"
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "")
 os.environ["REDIS_DATABASE_URL"] = ""
 os.environ["REDIS_PREFIX"] = f"fullstack-tests:{uuid4().hex}"

@@ -342,6 +342,8 @@ async function handle(request: NextRequest, context: Context) {
       },
       { status, headers: { "Cache-Control": "private, no-store" } },
     );
+    if (error instanceof BackendError && error.retryAfter)
+      response.headers.set("Retry-After", error.retryAfter);
     if (status === 401) setSession(response, "", 0);
     return response;
   }

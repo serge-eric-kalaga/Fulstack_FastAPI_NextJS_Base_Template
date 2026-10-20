@@ -9,6 +9,7 @@ export class BackendError extends Error {
   constructor(
     public status: number,
     message: string,
+    public retryAfter?: string | null,
   ) {
     super(message);
   }
@@ -57,7 +58,7 @@ export function backendResult<T>(result: {
               typeof error.message === "string"
             ? error.message
             : "Vérifiez les informations saisies.";
-    throw new BackendError(status, message);
+    throw new BackendError(status, message, result.response.headers.get("Retry-After"));
   }
   if (result.data === undefined)
     throw new BackendError(502, "Réponse du service invalide.");
