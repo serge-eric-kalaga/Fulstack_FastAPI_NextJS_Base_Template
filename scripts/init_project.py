@@ -128,9 +128,10 @@ def configurations(
     grafana = {
         "GF_SECURITY_ADMIN_USER": "admin",
         "GF_SECURITY_ADMIN_PASSWORD": secrets.token_hex(32),
-        "GRAFANA_MYSQL_USER": dev["MYSQL_USER"],
-        "GRAFANA_MYSQL_DATABASE": database,
-        "GRAFANA_MYSQL_PASSWORD": database_password,
+        "MYSQL_MONITORING_PASSWORD": secrets.token_hex(32),
+        "MONITORING_ENV": "dev",
+        "BACKEND_LOG_SOURCE": "./backend/logs",
+        "ALERTMANAGER_WEBHOOK_URL": "",
     }
     return dict(zip(ENV_FILES, (dev, tests, grafana)))
 

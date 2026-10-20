@@ -56,3 +56,6 @@ Thumbs.db
 /.agents/
 /backend/static/uploads/*
 !/backend/static/uploads/.gitkeep
+
+# Sauvegardes privées avant mise à jour du monitoring
+/monitoring/backups/

@@ -61,9 +61,7 @@ class InitProjectTests(unittest.TestCase):
         self.assertIn(
             f":{dev['MYSQL_PASSWORD']}@mysql:3306/ma_boutique", dev["DATABASE_URL"]
         )
-        self.assertEqual(grafana["GRAFANA_MYSQL_PASSWORD"], dev["MYSQL_PASSWORD"])
-        self.assertEqual(grafana["GRAFANA_MYSQL_USER"], dev["MYSQL_USER"])
-        self.assertEqual(grafana["GRAFANA_MYSQL_DATABASE"], dev["MYSQL_DATABASE"])
+        self.assertNotEqual(grafana["MYSQL_MONITORING_PASSWORD"], dev["MYSQL_PASSWORD"])
         self.assertEqual(tests["DATABASE_URL"], "sqlite:///.test.db")
         self.assertEqual(tests["CACHE_ENABLED"], "false")
         self.assertEqual(dev["EMAIL_VERIFICATION_ENABLED"], "false")
@@ -80,6 +78,7 @@ class InitProjectTests(unittest.TestCase):
             tests["SECRET_KEY"],
             tests["JWT_SECRET"],
             grafana["GF_SECURITY_ADMIN_PASSWORD"],
+            grafana["MYSQL_MONITORING_PASSWORD"],
         ]
         self.assertEqual(len(values), len(set(values)))
         for value in values:

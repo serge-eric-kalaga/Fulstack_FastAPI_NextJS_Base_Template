@@ -1,20 +1,42 @@
-"""
-contain all the test for the applications
-"""
+"""Isoler la suite de tests avant tout import de l’application et de son moteur SQL."""
 
 import os
-from dotenv import load_dotenv
+import secrets
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../../.env.test"))
+from dotenv import dotenv_values, load_dotenv
 
-log_dir = f"{os.getcwd()}/logs/app.log"
-static_dir = f"{os.getcwd()}/static"
-fake_dir = f"{os.getcwd()}/static/fake"
-if not os.path.exists(static_dir):
-    os.makedirs(f"{os.getcwd()}/static")
-if not os.path.exists(log_dir):
-    os.makedirs(f"{os.getcwd()}/logs", exist_ok=True)
-    with open(log_dir, "w") as f:
-        f.write("")
-if not os.path.exists(fake_dir):
-    os.makedirs(f"{os.getcwd()}/static/fake")
+# Ne jamais réutiliser implicitement DATABASE_URL du conteneur applicatif.
+# Un serveur de test est choisi explicitement ; sinon SQLite est créé puis supprimé.
+_test_env = Path(__file__).resolve().parents[2] / ".env.test"
+_explicit_test_url = os.environ.get("TEST_DATABASE_URL")
+_test_values = dotenv_values(_test_env) if _test_env.is_file() else {}
+if _test_env.is_file():
+    load_dotenv(_test_env, override=True)
+
+_test_database_directory = None
+_test_url = _explicit_test_url or _test_values.get("DATABASE_URL")
+if not _test_url:
+    _test_database_directory = TemporaryDirectory(prefix="fullstack-tests-")
+    _test_url = f"sqlite:///{Path(_test_database_directory.name) / 'tests.db'}"
+os.environ["DATABASE_URL"] = _test_url
+# Les jetons des comptes de test ne doivent pas être signés avec les clés de l’application.
+os.environ["SECRET_KEY"] = _test_values.get("SECRET_KEY") or secrets.token_hex(32)
+os.environ["JWT_SECRET"] = _test_values.get("JWT_SECRET") or secrets.token_hex(32)
+
+
+# Le cache applicatif n’est jamais utilisé par défaut. Les fixtures Redis
+# n’activent que TEST_REDIS_URL, sur un préfixe propre à cette session de tests.
+os.environ["CACHE_ENABLED"] = "false"
+os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "")
+os.environ["REDIS_DATABASE_URL"] = ""
+os.environ["REDIS_PREFIX"] = f"fullstack-tests:{uuid4().hex}"
+
+
+# Préparer les répertoires relatifs des tests sans tronquer un journal existant.
+_log_file = Path.cwd() / "logs" / "app.log"
+_log_file.parent.mkdir(parents=True, exist_ok=True)
+_log_file.touch(exist_ok=True)
+(Path.cwd() / "static" / "fake").mkdir(parents=True, exist_ok=True)

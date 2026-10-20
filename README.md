@@ -74,8 +74,8 @@ docker compose --env-file .env.dev exec -T backend uv run --frozen alembic upgra
 | OpenAPI | [localhost:8080/openapi.json](http://localhost:8080/openapi.json) |
 | Healthcheck | [localhost:8080/api/healthcheck/](http://localhost:8080/api/healthcheck/) |
 | phpMyAdmin | [localhost:8081](http://localhost:8081) |
-| Prometheus | [localhost:9090](http://localhost:9090) |
-| Grafana | [localhost:3001](http://localhost:3001) |
+| Prometheus (monitoring optionnel) | [localhost:9090](http://localhost:9090) |
+| Grafana (monitoring optionnel) | [localhost:3001](http://localhost:3001) |
 | Visualiseur de logs | [localhost:7777](http://localhost:7777) |
 
 MySQL et Redis sont accessibles sur le réseau Docker, sans port publié sur l’hôte.
@@ -112,9 +112,9 @@ Sans `--name`, un terminal interactif demande le nom. `--directory` permet de d�
 | MySQL | Base `ma_boutique`, compte applicatif et mots de passe générés |
 | Redis | Préfixes propres au projet et à l’environnement |
 | Tests | Base SQLite dédiée dans `backend/.test.db`, cache désactivé et secrets distincts |
-| Grafana | Mot de passe administrateur généré et source MySQL liée au compte applicatif |
+| Grafana | Mot de passe administrateur et mot de passe SQL dédiés au monitoring |
 
-Les secrets applicatifs, JWT, MySQL et Grafana utilisent des valeurs aléatoires indépendantes. Ils sont écrits dans les fichiers d’environnement avec des permissions `0600` sur les systèmes POSIX et ne sont jamais affichés dans le terminal. L’accès Grafana utilise le compte `admin` et le mot de passe de `.env.grafana`.
+Les secrets applicatifs, JWT, MySQL, Grafana et de l’exporteur SQL utilisent des valeurs aléatoires indépendantes. Ils sont écrits dans les fichiers d’environnement avec des permissions `0600` sur les systèmes POSIX et ne sont jamais affichés dans le terminal. L’accès Grafana utilise le compte `admin` et le mot de passe de `.env.grafana`.
 
 Si l’un des trois fichiers existe, toute l’opération est refusée : aucune fusion, rotation ou réécriture automatique des secrets. Une erreur d’écriture annule les fichiers créés par cette exécution. Pour adapter une instance configurée, modifier directement ses fichiers racine en conservant ses secrets et identifiants de base.
 
@@ -164,7 +164,7 @@ Les premières révisions Alembic supposent la présence des tables initiales. S
 
 Ce parcours de mise à jour comporte une interruption de service. Sauvegarder MySQL et les photos avant toute migration ; le retour à une ancienne image ne restaure pas les données. Les volumes `mysql_data`, `backend_uploads`, `backend_logs`, `caddy_data` et `caddy_config` conservent les données, journaux et certificats. Ne pas utiliser `down --volumes` pour arrêter la production. Les mots de passe MySQL ne sont pris en compte à l’initialisation d’un volume neuf : leur rotation demande aussi une mise à jour des comptes SQL.
 
-Les journaux Docker ont une rotation limitée ; les journaux applicatifs restent dans `backend_logs`. Le Compose de production ne lance pas phpMyAdmin, le serveur public de logs ni les interfaces de monitoring du développement. Les sauvegardes, leur restauration et la supervision du serveur doivent être organisées pour chaque projet. Cette configuration ne fournit pas de haute disponibilité.
+Les journaux Docker ont une rotation limitée ; les journaux applicatifs restent dans `backend_logs`. Le Compose de production ne lance pas phpMyAdmin, le serveur public de logs ni les interfaces de monitoring sans ajout du Compose dédié. Les sauvegardes, leur restauration et la supervision du serveur doivent être organisées pour chaque projet. Cette configuration ne fournit pas de haute disponibilité.
 
 ## Configuration
 
@@ -174,13 +174,13 @@ Tous les fichiers d’environnement restent **à la racine**. Ne pas en créer d
 | --- | --- |
 | `.env.dev` | Application et services Docker ; configuration locale du frontend |
 | `.env.test` | Paramètres de la suite de tests backend |
-| `.env.grafana` | Configuration Grafana |
+| `.env.grafana`, `.env.grafana.prod` | Identifiants et paramètres du monitoring, isolés par environnement |
 
 Les fichiers `.env` et `.env.*` sont ignorés par Git. Les variantes `.env.example` et `.env.*.example` peuvent servir de modèles versionnés.
 
 ### Grafana
 
-Dans `.env.grafana`, définir `GF_SECURITY_ADMIN_USER` et `GF_SECURITY_ADMIN_PASSWORD` pour l’administration. La source MySQL utilise `GRAFANA_MYSQL_USER`, `GRAFANA_MYSQL_DATABASE` et `GRAFANA_MYSQL_PASSWORD` : leurs valeurs doivent correspondre à `MYSQL_USER`, `MYSQL_DATABASE` et `MYSQL_PASSWORD` dans `.env.dev`. L’initialiseur prépare ces correspondances ; une configuration manuelle doit aussi les renseigner.
+Les identifiants Grafana et de l’exporteur SQL résident dans `.env.grafana` en développement et `.env.grafana.prod` en production. `python3 scripts/init_monitoring.py` (ou `--production`) complète les variables manquantes sans remplacer les secrets existants. Les sources Prometheus, Loki et Alertmanager sont provisionnées automatiquement ; Grafana ne dispose pas d’un accès SQL direct à l’application. Voir [Logs et monitoring](#logs-et-monitoring).
 
 ### Application et transport
 
@@ -474,7 +474,7 @@ Les tests utilisent des dossiers temporaires et couvrent la cohérence des confi
 
 ### Backend
 
-Créer `.env.test` **à la racine**, avec les paramètres backend requis et une base réservée aux tests. La suite supprime et recrée des tables : ne pas utiliser la base de développement ou de production. Une URL SQLite dédiée peut être utilisée, par exemple `sqlite:////tmp/fullstack-tests.db`.
+Créer `.env.test` **à la racine**, avec les paramètres backend requis et une base réservée aux tests. La suite ne réutilise jamais implicitement `DATABASE_URL` de l’application : elle choisit `TEST_DATABASE_URL` si cette variable est fournie, sinon `DATABASE_URL` du fichier racine `.env.test`, sinon une base SQLite temporaire. Les bases explicitement désignées doivent être réservées aux tests : la suite y supprime et recrée des tables. Une URL SQLite dédiée peut être utilisée, par exemple `sqlite:////tmp/fullstack-tests.db`.
 
 ```bash
 cd backend
@@ -485,7 +485,7 @@ uv run --frozen python scripts/export_openapi.py --check
 uv run --env-file ../.env.test python scripts/check_migrations.py
 ```
 
-Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance réservée aux tests. `TEST_MIGRATION_DATABASE_URL` permet de vérifier les migrations sur des bases MySQL temporaires ; sans cette variable, le contrôle utilise SQLite. La suite simule le transport SMTP.
+Le cache applicatif reste désactivé par défaut pendant les tests, avec des préfixes isolés. Pour inclure les tests Redis, définir `TEST_REDIS_URL` vers une instance réservée aux tests. `TEST_MIGRATION_DATABASE_URL` permet de vérifier les migrations sur des bases MySQL temporaires ; sans cette variable, le contrôle utilise SQLite. La suite simule le transport SMTP.
 
 ### Frontend
 
@@ -518,22 +518,98 @@ Le workflow [ci.yml](.github/workflows/ci.yml) s’exécute sur les pull request
 | --- | --- |
 | `Backend (sqlite)` | Initialisation du template, Ruff, Pytest avec Redis, export OpenAPI et migrations SQLite |
 | `Backend (mysql)` | Mêmes contrôles avec MySQL et vérification des migrations MySQL |
-| `Production (Docker)` | Images dédiées, démarrage MySQL/Redis/API/Next.js, migrations et requête via le proxy |
+| `Production et monitoring (Docker)` | Images dédiées, migrations, chaîne applicative, métriques, dashboards, logs et alertes |
 | `Frontend` | Installation verrouillée, ESLint, TypeScript, traductions, contrat/SDK, build de production et tests HTTP |
 
 Les jobs utilisent des services jetables et une configuration indépendante des fichiers `.env` locaux. Aucun secret GitHub n’est requis. Une nouvelle exécution remplace celle de la même PR. Les contrôles OpenAPI et SDK font échouer la CI si les fichiers générés ne sont pas à jour.
 
-Pour conditionner la fusion à ces résultats, sélectionner les trois jobs dans les règles de protection de la branche du dépôt.
+Pour conditionner la fusion à ces résultats, sélectionner les contrôles backend, frontend et production/monitoring dans les règles de protection de la branche du dépôt.
 
 ## Logs et monitoring
 
-- **Logs applicatifs** : `backend/logs/app.log`, écriture en ajout et rotation quotidienne à minuit UTC, avec conservation de 200 archives au maximum.
-- **Métriques** : `/metrics`, collectées par Prometheus selon [prometheus.yml](monitoring/prometheus/prometheus.yml).
-- **Grafana** : sources de données configurées dans [datasources.yaml](monitoring/grafana/datasources.yaml).
-- **Socket.IO** : point d’entrée `/ws/socket.io/` pour les transports polling et WebSocket.
-- **Healthcheck** : `/api/healthcheck/` indique la disponibilité HTTP de l’API ; il ne vérifie pas les connexions SQL et Redis.
+Le fichier [docker-compose.monitoring.yml](docker-compose.monitoring.yml) ajoute une stack de supervision au Compose de développement ou de production. Les tableaux de bord, sources de données, règles et collecteurs sont versionnés dans `monitoring/`. Les interfaces sont liées à `127.0.0.1` ; Loki et les exporteurs n’exposent aucun port sur l’hôte.
 
-Le visualiseur de logs est destiné au développement. Les données MySQL, Prometheus et Grafana sont conservées dans des volumes Docker nommés. Les configurations `monitoring/signoz/` et `nginx/` sont indépendantes du Compose principal.
+### Activer en développement
+
+Depuis la racine :
+
+```bash
+python3 scripts/init_monitoring.py
+docker compose --env-file .env.dev --env-file .env.grafana \
+  -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+```
+
+### Activer en production
+
+```bash
+python3 scripts/init_monitoring.py --production
+docker compose --env-file .env.prod --env-file .env.grafana.prod \
+  -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
+```
+
+Charger les deux fichiers d’environnement et les deux fichiers Compose pour toutes les commandes suivantes concernant le monitoring. La configuration de l’application reste dans `.env.dev` ou `.env.prod` ; aucun fichier d’environnement n’est créé dans les sous-répertoires.
+
+Sur une base MySQL **déjà initialisée**, préparer le compte de collecte après le premier démarrage avec le Compose de monitoring :
+
+```bash
+# Développement ; utiliser les fichiers production correspondants sur le serveur.
+docker compose --env-file .env.dev --env-file .env.grafana \
+  -f docker-compose.yml -f docker-compose.monitoring.yml \
+  exec -T mysql bash /docker-entrypoint-initdb.d/20-monitoring.sh
+```
+
+Sur un volume MySQL neuf, ce script est exécuté automatiquement. Il crée le compte `monitoring`, limité à trois connexions, avec les droits `PROCESS`, `REPLICATION CLIENT` et `SELECT` nécessaires à l’exporteur. Il peut être relancé après une rotation de `MYSQL_MONITORING_PASSWORD`. L’exporteur n’utilise ni le compte root, ni le compte applicatif. Les anciens paramètres `GRAFANA_MYSQL_*` ne sont plus utilisés.
+
+### Consulter les dashboards
+
+| Interface | Accès local | Usage |
+| --- | --- | --- |
+| Grafana | [localhost:3001](http://localhost:3001) | Dashboards, recherche des logs et exploration des données |
+| Prometheus | [localhost:9090](http://localhost:9090) | Séries, état des cibles et règles d’alerte |
+| Alertmanager | [localhost:9093](http://localhost:9093) | Alertes reçues, regroupements et silences |
+
+La vue d’ensemble est configurée comme accueil par défaut. Se connecter à Grafana avec `GF_SECURITY_ADMIN_USER` et `GF_SECURITY_ADMIN_PASSWORD` du fichier Grafana racine. Sur un serveur distant, utiliser un tunnel SSH, par exemple `ssh -L 3001:127.0.0.1:3001 -L 9090:127.0.0.1:9090 -L 9093:127.0.0.1:9093 utilisateur@serveur`. Ne pas publier ces interfaces via le domaine applicatif sans protection supplémentaire.
+
+Le dossier **Fullstack Template** contient :
+
+- **Vue d’ensemble** : disponibilité, sondes HTTP, débit, p95, erreurs et alertes actives.
+- **API FastAPI** : débit et latence par route, statuts HTTP, mémoire, CPU et descripteurs du processus.
+- **MySQL et Redis** : disponibilité, connexions, requêtes SQL, mémoire, efficacité et évictions du cache.
+- **Logs backend** : journal centralisé, filtrable par niveau, avec regroupement des traces multilignes.
+
+Les dashboards sont provisionnés depuis les fichiers JSON : modifier et versionner ces fichiers pour personnaliser le template. Les changements dans Grafana ne remplacent pas leur source Git. La collecte s’effectue toutes les 15 secondes ; les débits nécessitent plusieurs échantillons et les latences restent vides sans trafic applicatif. Les sondes utilisent `/api/healthcheck/` et `/api/auth/config` via Next.js. Le healthcheck HTTP de l’API ne teste pas SQL/Redis ; les exporteurs vérifient ces services séparément.
+
+### Alertes et notifications
+
+Les règles couvrent les cibles indisponibles, les sondes HTTP, MySQL/Redis, le taux de 5xx, la latence et la mémoire de l’API, les connexions MySQL et la mémoire/les évictions Redis. Les délais évitent d’alerter sur une brève interruption ; les alertes de taux et latence exigent un trafic minimal. Adapter les seuils à chaque projet dans [rules.yml](monitoring/prometheus/rules.yml).
+
+`Watchdog` est une alerte `info` permanente qui vérifie Prometheus → Alertmanager. Elle est volontaire et exclue des alertes opérationnelles de la vue d’ensemble. **Aucune notification externe n’est envoyée par défaut.** Renseigner `ALERTMANAGER_WEBHOOK_URL` dans le fichier Grafana racine pour transmettre les alertes `warning` et `critical` à un récepteur compatible avec le format webhook Alertmanager. Le webhook reste dans le fichier privé et la configuration runtime, jamais dans Git. Les alertes résolues sont transmises aussi ; les doublons sont regroupés, avec rappel toutes les quatre heures.
+
+Après une modification du webhook, régénérer la configuration et redémarrer Alertmanager :
+
+```bash
+docker compose --env-file .env.dev --env-file .env.grafana \
+  -f docker-compose.yml -f docker-compose.monitoring.yml run --rm monitoring-config
+docker compose --env-file .env.dev --env-file .env.grafana \
+  -f docker-compose.yml -f docker-compose.monitoring.yml restart alertmanager
+```
+
+### Stockage et exploitation
+
+Prometheus conserve au maximum 15 jours ou 2 Go de métriques. Loki conserve les logs sept jours, avec suppression asynchrone par le compacteur. Les volumes Grafana, Alertmanager, Prometheus, Loki et Alloy conservent leur état. Éviter `down --volumes` pour conserver ces données ; sauvegarder notamment le volume Grafana avant une mise à jour majeure.
+
+Alloy lit uniquement `backend/logs/app.log` en développement, ou le volume `backend_logs` en production, en lecture seule. Il n’accède pas au socket Docker. Ses positions de lecture sont persistantes. Les fichiers applicatifs restent en ajout, avec rotation quotidienne UTC et 200 archives ; Loki a sa propre rétention. Les journaux peuvent contenir des données métier : limiter les comptes Grafana et adapter la rétention au projet. Ce socle ne collecte pas les métriques de l’hôte, des conteneurs ou les traces distribuées ; il fonctionne sur Docker Desktop comme sur un serveur Docker, sans montage privilégié de l’hôte.
+
+Les ports locaux peuvent être modifiés via `GRAFANA_PORT`, `PROMETHEUS_PORT` et `ALERTMANAGER_PORT`. `MONITORING_ENV` sélectionne les cibles backend du développement (port 80) ou de production (8000), et `BACKEND_LOG_SOURCE` sélectionne le stockage des logs. Les initialiseurs préparent ces valeurs.
+
+### Vérifier le monitoring
+
+```bash
+python3 scripts/check_monitoring.py --env-file .env.grafana
+# Production : remplacer le fichier par .env.grafana.prod.
+```
+
+Le contrôle attend les cibles, les métriques applicatives, les quatre dashboards, les logs et le signal Watchdog dans Alertmanager. Utiliser `--grafana`, `--prometheus` et `--alertmanager` pour des ports différents. Les tests des seuils et délais des alertes sont exécutables avec `promtool test rules monitoring/prometheus/tests/rules.yml` ; la CI vérifie aussi la stack de production.
 
 ## Gestion des dépendances
 

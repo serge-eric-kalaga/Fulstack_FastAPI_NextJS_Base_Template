@@ -97,31 +97,6 @@ services:
     expose:
       - 6379
 
-  prometheus:
-    build:
-      context: ./monitoring/prometheus
-      dockerfile: dockerfile
-    ports:
-      - "9090:9090"
-    volumes:
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-    networks:
-      - monitor
-
-  grafana:
-    build:
-      context: ./monitoring/grafana
-      dockerfile: dockerfile
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    env_file:
-      - ./.env.grafana
-    networks:
-      - monitor
 
   log_viewer:
     image: httpd:latest
@@ -142,5 +117,3 @@ volumes:
   mysql_data:
   frontend_node_modules:
   frontend_next:
-  prometheus_data:
-  grafana_data:

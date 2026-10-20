@@ -1,6 +1,0 @@
-FROM grafana/grafana:10.0.5
-
-EXPOSE 3000
-
-ADD datasources.yaml /etc/grafana/provisioning/datasources/datasources.yaml
-# ADD . /var/lib/grafana

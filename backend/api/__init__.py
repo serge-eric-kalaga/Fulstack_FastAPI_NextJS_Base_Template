@@ -29,7 +29,16 @@ def createApp(config: SETTINGS, *, initialise_database: bool = True) -> FastAPI:
     # ----PROMETHEUS------
     from prometheus_fastapi_instrumentator import Instrumentator
 
-    Instrumentator().instrument(app, metric_namespace="api").expose(app, tags=["OTHER"])
+    from prometheus_fastapi_instrumentator import metrics as prometheus_metrics
+
+    # Les sondes ne doivent pas masquer la latence métier ; conserver des buckets
+    # au-delà d’une seconde pour que le p95 et ses alertes soient exploitables.
+    Instrumentator(excluded_handlers=["/metrics", "/api/healthcheck/"]).add(
+        prometheus_metrics.default(
+            metric_namespace="api",
+            latency_lowr_buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+        )
+    ).instrument(app).expose(app, tags=["OTHER"])
 
     # ----mount socket------
     sm = socket.socketio.ASGIApp(socket.server, socketio_path="/ws/socket.io")

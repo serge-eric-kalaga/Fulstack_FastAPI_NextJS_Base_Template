@@ -72,6 +72,8 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=10
     env:
       DATABASE_URL: ${{ matrix.database == 'mysql' && 'mysql+pymysql://root:ci-only-password@127.0.0.1:3306/template_tests' || 'sqlite:////tmp/template-tests.db' }}
+      # La suite Pytest n’utilise jamais implicitement la connexion applicative.
+      TEST_DATABASE_URL: ${{ matrix.database == 'mysql' && 'mysql+pymysql://root:ci-only-password@127.0.0.1:3306/template_tests' || 'sqlite:////tmp/template-tests.db' }}
       # Une URL MySQL permet aux tests de créer/supprimer leurs schémas temporaires.
       # Une valeur vide sélectionne les fichiers SQLite temporaires.
       TEST_MIGRATION_DATABASE_URL: ${{ matrix.database == 'mysql' && 'mysql+pymysql://root:ci-only-password@127.0.0.1:3306/template_tests' || '' }}
@@ -99,7 +101,7 @@ jobs:
       - name: Vérifier le contrat OpenAPI
         run: uv run --frozen python scripts/export_openapi.py --check
       - name: Lint Python
-        run: uv run --frozen ruff check --config pyproject.toml . ../scripts
+        run: uv run --frozen ruff check --config pyproject.toml . ../scripts ../monitoring/alertmanager/render.py
       # La commande d’initialisation se teste sans Docker, base ni dépendance externe.
       - name: Tests de l’initialisation du template
         run: uv run --frozen python -m unittest discover -s ../scripts/tests -v
@@ -202,21 +204,31 @@ jobs:
   # Construire les vraies images de production et démarrer la chaîne interne.
   # Aucun certificat public ni secret réel n’est nécessaire dans ce job jetable.
   production:
-    name: Production (Docker)
+    name: Production et monitoring (Docker)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Générer une configuration de production jetable
-        run: python3 scripts/init_production.py --name "Fullstack CI" --domain ci.example.com --admin-email ci@example.com
+        run: |
+          python3 scripts/init_production.py --name "Fullstack CI" --domain ci.example.com --admin-email ci@example.com
+          python3 scripts/init_monitoring.py --production
       - name: Valider et construire les images
         run: |
-          docker compose --env-file .env.prod -f docker-compose.prod.yml config --quiet
-          docker compose --env-file .env.prod -f docker-compose.prod.yml build
+          docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml config --quiet
+          docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml build
+      # promtool vérifie les configurations et simule les seuils/délais d’alerte.
+      - name: Vérifier les configurations et règles de monitoring
+        run: |
+          docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint promtool -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" -w /etc/prometheus prom/prometheus:v3.13.4 test rules tests/rules.yml
       - name: Vérifier les migrations et la disponibilité des applications
         run: |
-          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait --wait-timeout 180 mysql redis backend frontend
-          docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T frontend node -e "fetch('http://127.0.0.1:3000/api/auth/config').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+          docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --wait --wait-timeout 240 mysql redis backend frontend prometheus grafana alertmanager blackbox redis-exporter mysql-exporter loki alloy
+          docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml exec -T frontend node -e "fetch('http://127.0.0.1:3000/api/auth/config').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      # Vérification fonctionnelle : les services doivent produire de vraies données.
+      - name: Vérifier métriques, dashboards, logs et réception des alertes
+        run: python3 scripts/check_monitoring.py --env-file .env.grafana.prod --timeout 180
       - name: Nettoyer les ressources de test
         if: always()
-        run: docker compose --env-file .env.prod -f docker-compose.prod.yml down --volumes --remove-orphans
+        run: docker compose --env-file .env.prod --env-file .env.grafana.prod -f docker-compose.prod.yml -f docker-compose.monitoring.yml down --volumes --remove-orphans
