@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Mail, LockKeyhole } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
@@ -25,37 +28,70 @@ export function AccountSecurity({
   onCredentialsChanged: OnCredentialsChanged;
 }) {
   const { t } = useI18n();
+  const [active, setActive] = useState<"email" | "password" | null>(null);
   return (
-    <>
-      <section className="panel">
-        <div className="panel-heading">
-          <span className="section-index">03</span>
-          <div>
-            <h2>{t("Adresse de récupération")}</h2>
-            <p className="muted">
-              {t(
-                "Associez une adresse e-mail pour pouvoir récupérer votre compte.",
-              )}
-            </p>
-          </div>
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <h2>{t("Sécurité du compte")}</h2>
+          <p className="muted">
+            {t("Gérez vos identifiants et vos options de récupération.")}
+          </p>
         </div>
+      </div>
+      <div className="account-action-row">
+        <span className="account-action-icon">
+          <Mail size={18} aria-hidden="true" />
+        </span>
+        <div>
+          <h3>{t("Adresse de récupération")}</h3>
+          <p>{email || t("Aucune adresse e-mail")}</p>
+        </div>
+        <button
+          type="button"
+          className="button button-outline"
+          onClick={() => setActive("email")}
+        >
+          {t("Modifier")}
+        </button>
+      </div>
+      <div className="account-action-row">
+        <span className="account-action-icon">
+          <LockKeyhole size={18} aria-hidden="true" />
+        </span>
+        <div>
+          <h3>{t("Mot de passe")}</h3>
+          <p>{t("Protégez l’accès à votre compte.")}</p>
+        </div>
+        <button
+          type="button"
+          className="button button-outline"
+          onClick={() => setActive("password")}
+        >
+          {t("Modifier")}
+        </button>
+      </div>
+      <Modal
+        open={active === "email"}
+        onClose={() => setActive(null)}
+        title={t("Adresse de récupération")}
+        description={t(
+          "Associez une adresse e-mail pour pouvoir récupérer votre compte.",
+        )}
+      >
         <EmailForm email={email} onCredentialsChanged={onCredentialsChanged} />
-      </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <span className="section-index">04</span>
-          <div>
-            <h2>{t("Modifier le mot de passe")}</h2>
-            <p className="muted">
-              {t(
-                "Confirmez votre mot de passe actuel. Vous devrez ensuite vous reconnecter.",
-              )}
-            </p>
-          </div>
-        </div>
+      </Modal>
+      <Modal
+        open={active === "password"}
+        onClose={() => setActive(null)}
+        title={t("Modifier le mot de passe")}
+        description={t(
+          "Confirmez votre mot de passe actuel. Vous devrez ensuite vous reconnecter.",
+        )}
+      >
         <PasswordForm onCredentialsChanged={onCredentialsChanged} />
-      </section>
-    </>
+      </Modal>
+    </section>
   );
 }
 
@@ -78,6 +114,7 @@ function EmailForm({
   return (
     <form
       className="form-stack"
+      method="post"
       noValidate
       onSubmit={form.handleSubmit((values) =>
         mutation.mutate(values, {
@@ -159,6 +196,7 @@ function PasswordForm({
   return (
     <form
       className="form-stack"
+      method="post"
       noValidate
       onSubmit={form.handleSubmit((values) =>
         mutation.mutate(values, {

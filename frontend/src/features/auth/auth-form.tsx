@@ -1,6 +1,7 @@
 "use client";
 import { useI18n } from "@/lib/i18n/use-i18n";
 import Link from "next/link";
+import styles from "./account.module.css";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -11,6 +12,9 @@ import {
   EyeOff,
   LoaderCircle,
   ShieldCheck,
+  UserRound,
+  KeyRound,
+  LockKeyhole,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "./api";
@@ -66,54 +70,43 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     });
   }
   return (
-    <section className="auth-layout page-shell">
+    <section className={`${styles.root} auth-layout page-shell`}>
       <aside className="auth-story">
-        <span className="eyebrow">
-          <span className="status-dot" />
-          {t("AUTHENTIFICATION · MODULE DU TEMPLATE")}
+        <span className="account-brand">
+          <ShieldCheck size={20} aria-hidden="true" />
+          {t("TEMPLATE FULLSTACK")}
         </span>
-        <h1>
-          {signup ? (
-            <>
-              {t("Un compte.")}
-              <br />
-              {t("Un premier test.")}
-              <br />
-              <em>{t("Votre projet démarre.")}</em>
-            </>
-          ) : (
-            <>
-              {t("Votre projet.")}
-              <br />
-              {t("Une connexion")}
-              <em> {t("déjà intégrée.")}</em>
-            </>
-          )}
-        </h1>
-        <p>
-          {signup
-            ? t(
-                "Créez un compte pour tester le parcours d’inscription inclus dans ce template fullstack.",
-              )
-            : t(
-                "Connectez-vous pour explorer le profil utilisateur et les fonctionnalités de départ du template.",
-              )}
-        </p>
-        <div className="story-note">
-          <ShieldCheck size={21} />
-          <span>
-            {t("Inscription, connexion et profil.")}
-            <br />
-            <strong>{t("Une base à adapter à votre application.")}</strong>
-          </span>
+        <div className="account-story-copy">
+          <h2>{t("Votre prochain projet commence ici.")}</h2>
+          <p>
+            {t(
+              "Une base prête à personnaliser, de l’authentification à la gestion des accès.",
+            )}
+          </p>
         </div>
-        <span className="story-grid" aria-hidden="true" />
+        <div className="account-feature-list">
+          <div>
+            <ShieldCheck size={18} aria-hidden="true" />
+            <span>{t("Authentification et sécurité")}</span>
+          </div>
+          <div>
+            <UserRound size={18} aria-hidden="true" />
+            <span>{t("Profils et comptes utilisateurs")}</span>
+          </div>
+          <div>
+            <KeyRound size={18} aria-hidden="true" />
+            <span>{t("Rôles et permissions")}</span>
+          </div>
+        </div>
+        <p className="account-stack">
+          FASTAPI <span>+</span> NEXT.JS
+        </p>
       </aside>
       <div className="auth-card">
-        <div className="section-index">
-          {signup ? t("01 / INSCRIPTION") : t("01 / CONNEXION")}
-        </div>
-        <h2>{signup ? t("Créer votre compte") : t("Se connecter")}</h2>
+        <span className="account-form-icon">
+          <LockKeyhole size={23} aria-hidden="true" />
+        </span>
+        <h1>{signup ? t("Créer votre compte") : t("Se connecter")}</h1>
         <p className="muted">
           {signup
             ? t("Renseignez les informations du compte à créer.")
@@ -136,6 +129,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         ) : (
           <form
             className="form-stack"
+            method="post"
             onSubmit={form.handleSubmit(submit)}
             noValidate
           >

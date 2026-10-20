@@ -44,9 +44,19 @@ export function backendResult<T>(result: {
       "Le service est temporairement indisponible. Réessayez dans un instant.",
     );
   if (!result.response.ok) {
-    const status =
-      result.response.status === 403 ? 401 : result.response.status;
     const error = result.error;
+    const rawMessage =
+      error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "";
+    // Une permission insuffisante ne doit pas déconnecter un compte encore valide.
+    const expiredSession = ["Token Invalide", "Session expirée"].includes(
+      rawMessage,
+    );
+    const status =
+      result.response.status === 403 && expiredSession
+        ? 401
+        : result.response.status;
     const message =
       status === 401
         ? "Identifiant ou mot de passe incorrect, ou session expirée."
@@ -58,7 +68,11 @@ export function backendResult<T>(result: {
               typeof error.message === "string"
             ? error.message
             : "Vérifiez les informations saisies.";
-    throw new BackendError(status, message, result.response.headers.get("Retry-After"));
+    throw new BackendError(
+      status,
+      message,
+      result.response.headers.get("Retry-After"),
+    );
   }
   if (result.data === undefined)
     throw new BackendError(502, "Réponse du service invalide.");

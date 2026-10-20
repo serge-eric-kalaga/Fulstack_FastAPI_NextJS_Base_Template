@@ -164,6 +164,9 @@ jobs:
       # Vérifier les clés FR/EN, les interpolations et le formatage des dates.
       - name: Tests de traduction
         run: npm run test:i18n
+      # Prévenir les rechargements de catalogues inutiles lors des attributions de droits.
+      - name: Tests du cache d’administration
+        run: npm run test:admin-cache
       # Les tests HTTP suivants utiliseront ce build avec next start.
       - name: Build de production
         run: npm run build

@@ -16,12 +16,14 @@ def createApp(config: SETTINGS, *, initialise_database: bool = True) -> FastAPI:
     from api.utility.lifespan import LifeSpan
     from api.configs.logging import logDebug, logInfo, logError
     from api.views import user_router, auth_router, healthcheck_router
+    from api.views.access import router as access_router
 
     Setting = config
     app = FastAPI(
         title=Setting.APP_NAME,
         lifespan=LifeSpan,
     )
+    app.include_router(access_router, prefix="/api/access")
     app.include_router(auth_router, prefix="/api/auth")
     app.include_router(user_router, prefix="/api/user")
     app.include_router(healthcheck_router, prefix="/api/healthcheck")

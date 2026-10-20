@@ -1,3 +1,4 @@
+import { adminProxy } from "@/features/admin/proxy";
 import { listQuerySchema } from "@/lib/api/pagination";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -50,6 +51,8 @@ async function handle(request: NextRequest, context: Context) {
   const method = request.method;
   try {
     if (method !== "GET") checkOrigin(request);
+    if (path.startsWith("admin/"))
+      return await adminProxy(request, path, requireSession(request));
     if (path === "auth/config" && method === "GET") {
       return jsonData(
         backendRequired(await authConfig({ client: createBackendClient() })),
@@ -352,3 +355,4 @@ export const GET = handle;
 export const POST = handle;
 export const PATCH = handle;
 export const PUT = handle;
+export const DELETE = handle;

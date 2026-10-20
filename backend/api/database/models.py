@@ -3,6 +3,7 @@ from urllib.parse import quote
 from api.database import BaseTemplate
 from sqlalchemy import (
     func,
+    text,
     Integer,
     Boolean,
     DateTime,
@@ -76,6 +77,12 @@ class Role(Base):
     __tablename__ = "role"
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
     name: Mapped[str] = mapped_column(VARCHAR(100), unique=True)
+    description: Mapped[str] = mapped_column(
+        VARCHAR(500), default="", server_default=text("''"), init=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="1", init=False
+    )
     users: Mapped[list["User"]] = relationship(
         secondary=user_roles,
         back_populates="roles",
@@ -98,6 +105,12 @@ class Permission(Base):
     __tablename__ = "permission"
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
     name: Mapped[str] = mapped_column(VARCHAR(100), unique=True)
+    description: Mapped[str] = mapped_column(
+        VARCHAR(500), default="", server_default=text("''"), init=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="1", init=False
+    )
     roles: Mapped[list[Role]] = relationship(
         secondary=role_permissions,
         back_populates="permissions",
@@ -125,6 +138,10 @@ class User(Base, BaseTemplate):
     )
     telephone: Mapped[str] = mapped_column(VARCHAR(255), nullable=True, init=True)
     password: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, init=True)
+
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, init=False, default=False, server_default="0"
+    )
 
     profile_photo: Mapped[str | None] = mapped_column(
         VARCHAR(255), nullable=True, init=False, default=None

@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthConfigData, AuthConfigResponses, AuthForgotPasswordData, AuthForgotPasswordErrors, AuthForgotPasswordResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AuthResendVerificationData, AuthResendVerificationErrors, AuthResendVerificationResponses, AuthResetPasswordData, AuthResetPasswordErrors, AuthResetPasswordResponses, AuthVerifyEmailData, AuthVerifyEmailErrors, AuthVerifyEmailResponses, ChangeEmailData, ChangeEmailErrors, ChangeEmailResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, DeleteUserApiUserUsernameDeleteData, DeleteUserApiUserUsernameDeleteErrors, DeleteUserApiUserUsernameDeleteResponses, GetAllUserApiUserGetData, GetAllUserApiUserGetResponses, GetCurrentUserData, GetCurrentUserResponses, GetProfilePhotoData, GetProfilePhotoErrors, GetProfilePhotoResponses, GetUserDetailsApiUserUsernameGetData, GetUserDetailsApiUserUsernameGetErrors, GetUserDetailsApiUserUsernameGetResponses, ListUsersPageData, ListUsersPageErrors, ListUsersPageResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, UpdateCurrentUserData, UpdateCurrentUserErrors, UpdateCurrentUserResponses, UpdateUserApiUserUsernamePutData, UpdateUserApiUserUsernamePutErrors, UpdateUserApiUserUsernamePutResponses, UploadProfilePhotoData, UploadProfilePhotoErrors, UploadProfilePhotoResponses, VerifyHealthApiHealthcheckGetData, VerifyHealthApiHealthcheckGetResponses } from './types.gen';
+import type { AdminCreateUserData, AdminCreateUserErrors, AdminCreateUserResponses, AuthConfigData, AuthConfigResponses, AuthForgotPasswordData, AuthForgotPasswordErrors, AuthForgotPasswordResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AuthResendVerificationData, AuthResendVerificationErrors, AuthResendVerificationResponses, AuthResetPasswordData, AuthResetPasswordErrors, AuthResetPasswordResponses, AuthVerifyEmailData, AuthVerifyEmailErrors, AuthVerifyEmailResponses, ChangeEmailData, ChangeEmailErrors, ChangeEmailResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, CreatePermissionData, CreatePermissionErrors, CreatePermissionResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, DeleteUserApiUserUsernameDeleteData, DeleteUserApiUserUsernameDeleteErrors, DeleteUserApiUserUsernameDeleteResponses, GetAllUserApiUserGetData, GetAllUserApiUserGetResponses, GetCurrentUserData, GetCurrentUserResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetProfilePhotoData, GetProfilePhotoErrors, GetProfilePhotoResponses, GetRoleData, GetRoleErrors, GetRoleResponses, GetUserAccessData, GetUserAccessErrors, GetUserAccessResponses, GetUserDetailsApiUserUsernameGetData, GetUserDetailsApiUserUsernameGetErrors, GetUserDetailsApiUserUsernameGetResponses, GrantRolePermissionData, GrantRolePermissionErrors, GrantRolePermissionResponses, GrantUserPermissionData, GrantUserPermissionErrors, GrantUserPermissionResponses, GrantUserRoleData, GrantUserRoleErrors, GrantUserRoleResponses, ListAdminUsersData, ListAdminUsersErrors, ListAdminUsersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListUsersPageData, ListUsersPageErrors, ListUsersPageResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, RevokeRolePermissionData, RevokeRolePermissionErrors, RevokeRolePermissionResponses, RevokeUserPermissionData, RevokeUserPermissionErrors, RevokeUserPermissionResponses, RevokeUserRoleData, RevokeUserRoleErrors, RevokeUserRoleResponses, UpdateCurrentUserData, UpdateCurrentUserErrors, UpdateCurrentUserResponses, UpdatePermissionData, UpdatePermissionErrors, UpdatePermissionResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateUserApiUserUsernamePutData, UpdateUserApiUserUsernamePutErrors, UpdateUserApiUserUsernamePutResponses, UploadProfilePhotoData, UploadProfilePhotoErrors, UploadProfilePhotoResponses, VerifyHealthApiHealthcheckGetData, VerifyHealthApiHealthcheckGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,213 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * My Access
+ *
+ * Consulter uniquement ses propres droits, pour adapter l’interface.
+ */
+export const getMyAccess = <ThrowOnError extends boolean = false>(options?: Options<GetMyAccessData, ThrowOnError>): RequestResult<GetMyAccessResponses, GetMyAccessErrors, ThrowOnError> => (options?.client ?? client).get<GetMyAccessResponses, GetMyAccessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/me',
+    ...options
+});
+
+/**
+ * List Permissions
+ *
+ * Lister les permissions ; permission access.read requise.
+ */
+export const listPermissions = <ThrowOnError extends boolean = false>(options?: Options<ListPermissionsData, ThrowOnError>): RequestResult<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError> => (options?.client ?? client).get<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/permissions',
+    ...options
+});
+
+/**
+ * Add Permission
+ *
+ * Créer une permission ou retourner celle du même nom ; access.manage requise.
+ */
+export const createPermission = <ThrowOnError extends boolean = false>(options: Options<CreatePermissionData, ThrowOnError>): RequestResult<CreatePermissionResponses, CreatePermissionErrors, ThrowOnError> => (options.client ?? client).post<CreatePermissionResponses, CreatePermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/permissions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Permission
+ *
+ * Modifier la description ou suspendre la permission ; conserver son code métier.
+ */
+export const updatePermission = <ThrowOnError extends boolean = false>(options: Options<UpdatePermissionData, ThrowOnError>): RequestResult<UpdatePermissionResponses, UpdatePermissionErrors, ThrowOnError> => (options.client ?? client).patch<UpdatePermissionResponses, UpdatePermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/permissions/{permission_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Roles
+ *
+ * Lister les rôles ; permission access.read requise.
+ */
+export const listRoles = <ThrowOnError extends boolean = false>(options?: Options<ListRolesData, ThrowOnError>): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError> => (options?.client ?? client).get<ListRolesResponses, ListRolesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles',
+    ...options
+});
+
+/**
+ * Add Role
+ *
+ * Créer un rôle ou retourner celui du même nom ; access.manage requise.
+ */
+export const createRole = <ThrowOnError extends boolean = false>(options: Options<CreateRoleData, ThrowOnError>): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Role Detail
+ *
+ * Consulter un rôle et ses permissions.
+ */
+export const getRole = <ThrowOnError extends boolean = false>(options: Options<GetRoleData, ThrowOnError>): RequestResult<GetRoleResponses, GetRoleErrors, ThrowOnError> => (options.client ?? client).get<GetRoleResponses, GetRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles/{role_id}',
+    ...options
+});
+
+/**
+ * Update Role
+ *
+ * Modifier les métadonnées du rôle ; sa désactivation suspend ses droits hérités.
+ */
+export const updateRole = <ThrowOnError extends boolean = false>(options: Options<UpdateRoleData, ThrowOnError>): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles/{role_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Unassign Role Permission
+ *
+ * Retirer une permission du rôle, donc de tous ses bénéficiaires indirects.
+ */
+export const revokeRolePermission = <ThrowOnError extends boolean = false>(options: Options<RevokeRolePermissionData, ThrowOnError>): RequestResult<RevokeRolePermissionResponses, RevokeRolePermissionErrors, ThrowOnError> => (options.client ?? client).delete<RevokeRolePermissionResponses, RevokeRolePermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles/{role_id}/permissions/{permission_id}',
+    ...options
+});
+
+/**
+ * Assign Role Permission
+ *
+ * Accorder une permission existante à un rôle.
+ */
+export const grantRolePermission = <ThrowOnError extends boolean = false>(options: Options<GrantRolePermissionData, ThrowOnError>): RequestResult<GrantRolePermissionResponses, GrantRolePermissionErrors, ThrowOnError> => (options.client ?? client).put<GrantRolePermissionResponses, GrantRolePermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/roles/{role_id}/permissions/{permission_id}',
+    ...options
+});
+
+/**
+ * List Users
+ *
+ * Lister et rechercher les utilisateurs pour gérer leurs attributions.
+ */
+export const listAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<ListAdminUsersData, ThrowOnError>): RequestResult<ListAdminUsersResponses, ListAdminUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminUsersResponses, ListAdminUsersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users',
+    ...options
+});
+
+/**
+ * Create Admin User
+ *
+ * Créer un compte normal en conservant la confirmation d’e-mail configurée.
+ */
+export const adminCreateUser = <ThrowOnError extends boolean = false>(options: Options<AdminCreateUserData, ThrowOnError>): RequestResult<AdminCreateUserResponses, AdminCreateUserErrors, ThrowOnError> => (options.client ?? client).post<AdminCreateUserResponses, AdminCreateUserErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * User Access
+ *
+ * Consulter les rôles, permissions directes et permissions effectives d’un compte.
+ */
+export const getUserAccess = <ThrowOnError extends boolean = false>(options: Options<GetUserAccessData, ThrowOnError>): RequestResult<GetUserAccessResponses, GetUserAccessErrors, ThrowOnError> => (options.client ?? client).get<GetUserAccessResponses, GetUserAccessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users/{username}',
+    ...options
+});
+
+/**
+ * Unassign User Permission
+ *
+ * Retirer le lien direct ; les permissions héritées restent effectives.
+ */
+export const revokeUserPermission = <ThrowOnError extends boolean = false>(options: Options<RevokeUserPermissionData, ThrowOnError>): RequestResult<RevokeUserPermissionResponses, RevokeUserPermissionErrors, ThrowOnError> => (options.client ?? client).delete<RevokeUserPermissionResponses, RevokeUserPermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users/{username}/permissions/{permission_id}',
+    ...options
+});
+
+/**
+ * Assign User Permission
+ *
+ * Accorder directement une permission à un compte.
+ */
+export const grantUserPermission = <ThrowOnError extends boolean = false>(options: Options<GrantUserPermissionData, ThrowOnError>): RequestResult<GrantUserPermissionResponses, GrantUserPermissionErrors, ThrowOnError> => (options.client ?? client).put<GrantUserPermissionResponses, GrantUserPermissionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users/{username}/permissions/{permission_id}',
+    ...options
+});
+
+/**
+ * Unassign Role
+ *
+ * Retirer le lien de rôle ; un lien déjà absent est accepté.
+ */
+export const revokeUserRole = <ThrowOnError extends boolean = false>(options: Options<RevokeUserRoleData, ThrowOnError>): RequestResult<RevokeUserRoleResponses, RevokeUserRoleErrors, ThrowOnError> => (options.client ?? client).delete<RevokeUserRoleResponses, RevokeUserRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users/{username}/roles/{role_id}',
+    ...options
+});
+
+/**
+ * Assign Role
+ *
+ * Attribuer un rôle existant ; un lien déjà présent est accepté.
+ */
+export const grantUserRole = <ThrowOnError extends boolean = false>(options: Options<GrantUserRoleData, ThrowOnError>): RequestResult<GrantUserRoleResponses, GrantUserRoleErrors, ThrowOnError> => (options.client ?? client).put<GrantUserRoleResponses, GrantUserRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/access/users/{username}/roles/{role_id}',
+    ...options
+});
 
 /**
  * Options publiques d’inscription

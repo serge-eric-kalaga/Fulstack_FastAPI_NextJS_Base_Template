@@ -13,6 +13,7 @@ import {
   LogOut,
   UserRound,
 } from "lucide-react";
+import { useMyAccess } from "@/features/admin/hooks";
 import { useLogout, useSession } from "@/features/auth/hooks";
 import { Preferences } from "./preferences";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,6 +22,7 @@ import { formatConnection } from "@/lib/date";
 export function Navbar() {
   const { t, language } = useI18n();
   const session = useSession();
+  const access = useMyAccess();
   const logout = useLogout();
   const router = useRouter();
   const pathname = usePathname();
@@ -97,6 +99,21 @@ export function Navbar() {
                         <ArrowUpRight size={15} className="push-right" />
                       </Link>
                     </Dropdown.Item>
+                    {(access.data?.is_superuser ||
+                      access.data?.permissions.some((p) =>
+                        [
+                          "access.read",
+                          "access.manage",
+                          "users.create",
+                        ].includes(p),
+                      )) && (
+                      <Dropdown.Item asChild>
+                        <Link href="/administration" className="menu-item">
+                          <Layers3 size={17} />
+                          {t("Administration")}
+                        </Link>
+                      </Dropdown.Item>
+                    )}
                     <Dropdown.Item
                       className="menu-item menu-danger"
                       disabled={logout.isPending}

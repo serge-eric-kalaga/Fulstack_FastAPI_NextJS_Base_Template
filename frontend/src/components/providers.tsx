@@ -7,7 +7,11 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/lib/i18n/provider";
-import { sessionChannel, sessionKey } from "@/features/auth/hooks";
+import {
+  sessionChannel,
+  sessionKey,
+  sessionSource,
+} from "@/features/auth/hooks";
 
 function SessionEvents() {
   const client = useQueryClient();
@@ -20,7 +24,12 @@ function SessionEvents() {
         client.setQueryData(sessionKey, null);
       });
     };
-    const refresh = () => {
+    const refresh = (event: MessageEvent) => {
+      if (event.data?.source === sessionSource) return;
+      if (event.data?.kind === "profile") {
+        void client.invalidateQueries({ queryKey: sessionKey, exact: true });
+        return;
+      }
       void client.cancelQueries().then(() => {
         client.removeQueries({
           predicate: (query) => query.queryKey[0] !== "session",

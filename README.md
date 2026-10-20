@@ -346,6 +346,13 @@ Le proxy conserve le JWT dans un cookie **HttpOnly, SameSite=Lax**, vérifie l�
 
 TanStack Query gère les données serveur, React Hook Form et Zod les formulaires, et React l’état local. Les changements de compte purgent le cache privé. i18next et next-themes gèrent les préférences de langue et de thème dans le navigateur.
 
+Après une écriture, préférer `setQueryData`/`setQueriesData` avec l’objet retourné par
+l’API, puis invalider uniquement les clés dont les données dépendent réellement de
+la modification. `features/admin/cache.ts` illustre ce principe : modifier une
+permission de rôle met à jour son détail sans recharger les catalogues. Les
+notifications entre onglets distinguent une modification de profil d’un changement
+de compte ; seul ce dernier purge les données privées.
+
 ## Développement local
 
 ### Backend
@@ -378,7 +385,7 @@ Dans Docker, le code est monté depuis l’hôte. Uvicorn surveille `backend/api
 
 - **Inscription** : crée un compte. Si la vérification d’e-mail est activée, l’adresse est obligatoire et la connexion attend sa confirmation ; sinon, le frontend connecte le compte directement.
 - **Confirmation** : le lien ouvre `/confirmer-email`. Un bouton confirme explicitement l’adresse. Un renvoi remplace le lien précédent.
-- **Profil** : `/profil` permet de modifier le téléphone, la photo, l’adresse e-mail et le mot de passe. Le menu du compte affiche la dernière connexion et permet de se déconnecter.
+- **Profil** : `/profil` permet de modifier le téléphone, la photo, l’adresse e-mail et le mot de passe. Les informations personnelles, l’e-mail et le mot de passe se modifient dans des modales accessibles (`components/ui/modal.tsx`) ; leur fermeture efface les formulaires de sécurité. Le menu du compte affiche la dernière connexion et permet de se déconnecter.
 - **Changement de mot de passe** : exige le mot de passe actuel et révoque les sessions ainsi que les liens de réinitialisation.
 - **Changement d’adresse** : exige le mot de passe actuel et une reconnexion ; si la vérification est active, la nouvelle adresse doit être confirmée.
 - **Mot de passe oublié** : `/mot-de-passe-oublie` envoie un lien vers `/reinitialiser-mot-de-passe`. Après réinitialisation, l’utilisateur se connecte avec son nouveau mot de passe.
@@ -849,9 +856,128 @@ ou `get_access(db, user)`.
 La migration `0004_roles_permissions` crée les rôles, permissions et associations,
 sans modifier les comptes existants. Elle est appliquée par les commandes Alembic
 et le parcours de déploiement habituels. Les routes métier doivent déclarer leurs
-propres dépendances ; aucun endpoint public d’attribution des droits n’est fourni.
+propres dépendances. L’administration HTTP ci-dessous exige des droits explicites.
 Les contrôles de rôle/permission ne remplacent pas la vérification du propriétaire
 d’une ressource.
+
+### Administrer les droits via HTTP
+
+Les routes `/api/access` utilisent les utilitaires précédents et l’enveloppe
+`Response` habituelle. **`access.read`** autorise la consultation ;
+**`access.manage`** autorise la création des rôles/permissions et les attributions/retraits ;
+**`users.create`** autorise la création de comptes normaux. Un rôle nommé
+`admin` ne suffit pas : ces permissions doivent lui être explicitement associées.
+`access.manage` donne le contrôle de tous les droits, y compris ceux de son propre
+compte ; la réserver aux administrateurs de confiance.
+
+| Méthode | Route sous `/api/access` | Action |
+| --- | --- | --- |
+| GET | `/me` | Lire ses propres droits (authentification requise) |
+| GET / POST | `/users` | Lister les comptes / créer un utilisateur normal |
+| GET / POST | `/roles` | Lister / créer un rôle |
+| GET | `/roles/{role_id}` | Lire le rôle et ses permissions |
+| GET / POST | `/permissions` | Lister / enregistrer techniquement une permission |
+| PATCH | `/roles/{role_id}` | Modifier description et statut du rôle |
+| PATCH | `/permissions/{permission_id}` | Modifier description et statut de la permission |
+| GET | `/users/{username}` | Lire les rôles, permissions directes et effectives |
+| PUT / DELETE | `/users/{username}/roles/{role_id}` | Attribuer / retirer un rôle |
+| PUT / DELETE | `/roles/{role_id}/permissions/{permission_id}` | Attribuer / retirer une permission à un rôle |
+| PUT / DELETE | `/users/{username}/permissions/{permission_id}` | Attribuer / retirer une permission directe |
+
+Les listes réutilisent `page`, `page_size`, `q`, `sort=id|name` et `order`
+(`sort=id|username` pour les utilisateurs ; recherche par identifiant ou e-mail).
+La création réutilise un nom existant ; les attributions et retraits répétés sont
+idempotents. Une cible inconnue retourne 404 ; un conflit concurrent retourne 409.
+Les codes des rôles et permissions restent stables : ils sont référencés par les
+dépendances métier. `PATCH` accepte `description` (500 caractères maximum) et
+`is_active`. La désactivation conserve les attributions ; la réactivation les
+rétablit. Un rôle désactivé ne satisfait plus `require_roles` et ne transmet plus
+ses permissions. Une permission désactivée ne donne plus accès, directement ou via
+un rôle. Un autre rôle ou droit direct actif peut toujours autoriser l’action.
+Le statut super administrateur conserve son accès complet.
+
+Une permission telle que `reports.export` représente une opération prévue dans le
+code. Créer son nom en base ne protège aucune route automatiquement. Déclarer le
+contrôle et enregistrer le code lors de l’installation de la fonctionnalité :
+
+```python
+from fastapi import Depends
+from api.services.authorization import create_permission, require_permissions
+
+# Dans une initialisation ou migration de données, puis db.commit() :
+create_permission(db, "reports.export")
+
+@router.get("/reports/export", dependencies=[Depends(require_permissions("reports.export"))])
+def export_reports():
+    ...
+```
+
+L’administration permet ensuite de décrire, activer/désactiver et attribuer ce
+droit. La route POST de permission reste un outil technique protégé pour alimenter
+le catalogue ; elle n’est pas exposée par le proxy ni l’interface d’administration.
+
+### Initialiser le super administrateur
+
+Après le démarrage et les migrations, créer le premier super administrateur :
+
+```bash
+docker compose --env-file .env.dev exec backend python -m scripts.init_superadmin \
+  --username superadmin --email admin@example.com
+```
+
+Le mot de passe est demandé deux fois et sa saisie est masquée. En production,
+utiliser `docker compose --env-file .env.prod -f docker-compose.prod.yml exec backend`
+avec la même commande Python. Aucun identifiant par défaut ni compte privilégié
+n’est créé au démarrage.
+
+Le marqueur serveur `is_superuser` donne tous les droits, y compris les nouveaux
+rôles et permissions utilisés ultérieurement pour protéger les routes. Un simple
+rôle nommé `admin` ou `superadmin` ne donne pas ce statut. Le marqueur ne peut pas
+être modifié par les formulaires ou les routes HTTP d’administration.
+
+La commande est réexécutable sans changer le mot de passe d’un super administrateur
+existant. Pour promouvoir explicitement un compte existant, ajouter
+`--promote-existing` (son mot de passe est conservé). Pour une automatisation,
+`--password-stdin` lit le mot de passe sur l’entrée standard ; utiliser un secret
+protégé, jamais un mot de passe dans les arguments ou dans Git.
+
+### Administration depuis Next.js
+
+Se connecter avec ce compte, puis ouvrir **Administration** dans le menu du profil
+(`/administration`). Cette page permet de créer des utilisateurs et des rôles,
+puis d’attribuer ou retirer les rôles, les permissions des rôles et les
+permissions directes des utilisateurs. Les permissions sont un catalogue technique,
+sans formulaire de création libre. Les catalogues proposent recherche et
+pagination. Le menu d’administration **Utilisateurs**, **Rôles** et **Permissions** sépare
+les attributions des comptes, l’édition des rôles et le catalogue technique.
+La création d’un compte respecte `EMAIL_VERIFICATION_ENABLED`.
+
+Les services et hooks sont dans `frontend/src/features/admin`. Ils réutilisent
+TanStack Query, le client TypeScript généré et une liste explicite de routes du
+proxy Next.js. Le JWT reste côté serveur. L’affichage tient compte des permissions ;
+chaque opération est également contrôlée par FastAPI. Pour déléguer la gestion,
+attribuer `access.read`, `access.manage` et/ou `users.create` selon les besoins.
+
+Puis utiliser Swagger avec le JWT de ce compte, ou appeler l’API :
+
+```bash
+# TOKEN contient le JWT d’un compte ayant access.manage.
+curl -X POST http://localhost:8080/api/access/permissions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"reports.export"}'
+# Remplacer 1 par les identifiants retournés lors de la création.
+curl -X PUT http://localhost:8080/api/access/roles/1/permissions/1 \
+  -H "Authorization: Bearer $TOKEN"
+curl -X PUT http://localhost:8080/api/access/users/utilisateur_existant/roles/1 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Les droits sont relus à chaque appel : retirer ses derniers droits d’administration
+peut bloquer son accès, récupérable avec la commande d’initialisation ci-dessus. La consultation
+retourne séparément `direct_permissions` et `permissions` (effectives) : retirer un
+lien direct ne retire pas la permission héritée d’un rôle. Les endpoints sont
+visibles dans Swagger (groupe `ACCESS`) et dans le SDK généré. Les réponses indiquent également `is_superuser` ; ce statut dispense des contrôles
+de rôle/permission, mais ne remplace pas les règles métier de propriété des ressources.
 
 ## Stockage des fichiers
 

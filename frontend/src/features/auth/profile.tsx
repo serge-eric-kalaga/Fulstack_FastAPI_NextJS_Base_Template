@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { AccountSecurity, type CredentialNotice } from "./security";
 import { Avatar } from "@/components/ui/avatar";
+import { Modal } from "@/components/ui/modal";
+import styles from "./account.module.css";
 import { Field } from "@/components/ui/field";
 import type { CurrentUser } from "@/lib/api/types";
 import { formatConnection } from "@/lib/date";
@@ -36,7 +38,7 @@ export function Profile() {
   }, [session.isSuccess, session.data, router, credentialNotice]);
   if (session.isError)
     return (
-      <main className="page-shell profile-page">
+      <main className={`${styles.root} page-shell profile-page`}>
         <div className="notice notice-error" role="alert">
           <p>{t("Votre profil ne peut pas être chargé pour le moment.")}</p>
           <button
@@ -50,7 +52,10 @@ export function Profile() {
     );
   if (!session.data)
     return (
-      <main className="page-shell profile-page" aria-busy="true">
+      <main
+        className={`${styles.root} page-shell profile-page`}
+        aria-busy="true"
+      >
         <div className="skeleton profile-skeleton" role="status">
           <span className="sr-only">{t("Chargement du profil…")}</span>
         </div>
@@ -74,6 +79,7 @@ function ProfileDetails({
   const { t, language } = useI18n();
   const update = useUpdateProfile();
   const photo = useUploadPhoto();
+  const [editing, setEditing] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const form = useForm<ProfileInput>({
@@ -99,17 +105,14 @@ function ProfileDetails({
     });
   }
   return (
-    <main className="page-shell profile-page">
+    <main className={`${styles.root} page-shell profile-page`}>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{t("PROFIL · MODULE DU TEMPLATE")}</span>
-          <h1>
-            {t("Profil utilisateur")}
-            <span className="brand-dot">.</span>
-          </h1>
+          <span className="account-breadcrumb">{t("Mon compte")}</span>
+          <h1>{t("Mon profil")}</h1>
           <p className="muted">
             {t(
-              "Testez la gestion du compte incluse dans le template et adaptez-la à votre projet.",
+              "Retrouvez vos informations personnelles et les paramètres de votre compte.",
             )}
           </p>
         </div>
@@ -127,16 +130,16 @@ function ProfileDetails({
           <div className="sidebar-note">
             <LockKeyhole size={20} />
             <p>
-              {t(
-                "Ce module fournit une base pour la gestion des profils dans votre application.",
-              )}
+              {t("Gardez vos informations à jour et sécurisez votre compte.")}
             </p>
           </div>
         </aside>
         <div className="profile-panels">
           <section className="panel">
             <div className="panel-heading">
-              <span className="section-index">01</span>
+              <span className="account-action-icon">
+                <Camera size={18} aria-hidden="true" />
+              </span>
               <div>
                 <h2>{t("Photo de profil")}</h2>
                 <p className="muted">
@@ -199,75 +202,110 @@ function ProfileDetails({
           </section>
           <section className="panel">
             <div className="panel-heading">
-              <span className="section-index">02</span>
               <div>
                 <h2>{t("Informations personnelles")}</h2>
                 <p className="muted">
-                  {t(
-                    "Les champs de départ du profil, à adapter aux besoins de votre projet.",
-                  )}
+                  {t("Vos coordonnées et votre identifiant de connexion.")}
                 </p>
               </div>
             </div>
-            <form
-              className="form-stack"
-              onSubmit={form.handleSubmit((values) =>
-                update.mutate(values, {
-                  onSuccess: (updated) =>
-                    form.reset({ telephone: updated.telephone || "" }),
-                }),
-              )}
-              noValidate
-            >
-              <Field
-                id="profile-username"
-                label={t("Nom d’utilisateur")}
-                value={user.username}
-                readOnly
-                hint={t("Votre identifiant de connexion.")}
-              />
-              <Field
-                id="profile-telephone"
-                label={t("Téléphone")}
-                type="tel"
-                autoComplete="tel"
-                placeholder="+226 70 00 00 00"
-                maxLength={32}
-                {...form.register("telephone")}
-                error={
-                  form.formState.errors.telephone?.message
-                    ? t(form.formState.errors.telephone.message)
-                    : undefined
-                }
-              />
-              {update.error ? (
-                <p role="alert" className="notice notice-error">
-                  {t(update.error.message)}
-                </p>
-              ) : null}
-              <div className="form-footer">
-                <span aria-live="polite" className="success-message">
-                  {update.isSuccess ? (
-                    <>
-                      <Check size={15} />
-                      {t("Modifications enregistrées.")}
-                    </>
-                  ) : null}
-                </span>
-                <button
-                  className="button button-primary"
-                  type="submit"
-                  disabled={update.isPending || !form.formState.isDirty}
-                >
-                  {update.isPending ? (
-                    <LoaderCircle size={16} className="spin" />
-                  ) : null}
-                  {update.isPending
-                    ? t("Enregistrement…")
-                    : t("Enregistrer les modifications")}
-                </button>
+            <dl className="account-facts">
+              <div>
+                <dt>{t("Nom d’utilisateur")}</dt>
+                <dd>{user.username}</dd>
               </div>
-            </form>
+              <div>
+                <dt>{t("Téléphone")}</dt>
+                <dd>{user.telephone || t("Non renseigné")}</dd>
+              </div>
+            </dl>
+            <div className="account-panel-footer">
+              <p className="success-message" role="status">
+                {update.isSuccess ? t("Modifications enregistrées.") : null}
+              </p>
+              <button
+                className="button button-outline"
+                type="button"
+                onClick={() => {
+                  form.reset({ telephone: user.telephone || "" });
+                  update.reset();
+                  setEditing(true);
+                }}
+              >
+                {t("Modifier mes informations")}
+              </button>
+            </div>
+            <Modal
+              open={editing}
+              onClose={() => setEditing(false)}
+              title={t("Informations personnelles")}
+              description={t(
+                "Vos coordonnées et votre identifiant de connexion.",
+              )}
+            >
+              <form
+                className="form-stack"
+                method="post"
+                onSubmit={form.handleSubmit((values) =>
+                  update.mutate(values, {
+                    onSuccess: (updated) => {
+                      form.reset({ telephone: updated.telephone || "" });
+                      setEditing(false);
+                    },
+                  }),
+                )}
+                noValidate
+              >
+                <Field
+                  id="profile-username"
+                  label={t("Nom d’utilisateur")}
+                  value={user.username}
+                  readOnly
+                  hint={t("Votre identifiant de connexion.")}
+                />
+                <Field
+                  id="profile-telephone"
+                  label={t("Téléphone")}
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="+226 70 00 00 00"
+                  maxLength={32}
+                  {...form.register("telephone")}
+                  error={
+                    form.formState.errors.telephone?.message
+                      ? t(form.formState.errors.telephone.message)
+                      : undefined
+                  }
+                />
+                {update.error ? (
+                  <p role="alert" className="notice notice-error">
+                    {t(update.error.message)}
+                  </p>
+                ) : null}
+                <div className="form-footer">
+                  <span aria-live="polite" className="success-message">
+                    {update.isSuccess ? (
+                      <>
+                        <Check size={15} />
+                        {t("Modifications enregistrées.")}
+                      </>
+                    ) : null}
+                  </span>
+                  <button
+                    className="button button-primary"
+                    type="submit"
+                    disabled={update.isPending || !form.formState.isDirty}
+                  >
+                    {update.isPending ? (
+                      <LoaderCircle size={16} className="spin" />
+                    ) : null}
+                    {update.isPending
+                      ? t("Enregistrement…")
+                      : t("Enregistrer les modifications")}
+                  </button>
+                </div>
+              </form>
+            </Modal>
           </section>
           <AccountSecurity
             email={user.email}

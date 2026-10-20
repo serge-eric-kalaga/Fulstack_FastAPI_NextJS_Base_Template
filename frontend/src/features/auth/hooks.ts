@@ -6,10 +6,12 @@ import { useI18n } from "@/lib/i18n/use-i18n";
 
 export const sessionKey = ["session"] as const;
 export const sessionChannel = "fullstack-session";
-function notifySessionChange() {
+// Identifier l’onglet émetteur évite de retraiter sa propre mise à jour déjà appliquée.
+export const sessionSource = Math.random().toString(36).slice(2);
+function notifySessionChange(kind: "account" | "profile" = "account") {
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel(sessionChannel);
-    channel.postMessage("changed");
+    channel.postMessage({ source: sessionSource, kind });
     channel.close();
   }
 }
@@ -70,7 +72,7 @@ export function useUpdateProfile() {
     mutationFn: authApi.updateProfile,
     onSuccess: (user) => {
       client.setQueryData(sessionKey, user);
-      notifySessionChange();
+      notifySessionChange("profile");
     },
   });
 }
@@ -80,7 +82,7 @@ export function useUploadPhoto() {
     mutationFn: authApi.uploadPhoto,
     onSuccess: (user) => {
       client.setQueryData(sessionKey, user);
-      notifySessionChange();
+      notifySessionChange("profile");
     },
   });
 }

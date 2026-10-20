@@ -51,37 +51,52 @@ class Access:
 
     roles: frozenset[str]
     permissions: frozenset[str]
+    is_superuser: bool = False
 
 
 def get_access(db: Session, user: User) -> Access:
     """Lire les droits SQL actuels sans utiliser les claims du JWT ni un cache Redis."""
     roles = db.scalars(
-        select(Role.name).join(user_roles).where(user_roles.c.user_id == user.id)
+        select(Role.name)
+        .join(user_roles)
+        .where(user_roles.c.user_id == user.id, Role.is_active.is_(True))
     ).all()
     direct = (
         select(Permission.name)
         .join(user_permissions)
-        .where(user_permissions.c.user_id == user.id)
+        .where(user_permissions.c.user_id == user.id, Permission.is_active.is_(True))
     )
     inherited = (
         select(Permission.name)
         .join(role_permissions)
+        .join(Role, Role.id == role_permissions.c.role_id)
         .join(user_roles, user_roles.c.role_id == role_permissions.c.role_id)
-        .where(user_roles.c.user_id == user.id)
+        .where(
+            user_roles.c.user_id == user.id,
+            Role.is_active.is_(True),
+            Permission.is_active.is_(True),
+        )
     )
-    return Access(
-        frozenset(roles), frozenset(db.scalars(union(direct, inherited)).all())
-    )
+    permissions = db.scalars(
+        select(Permission.name) if user.is_superuser else union(direct, inherited)
+    ).all()
+    return Access(frozenset(roles), frozenset(permissions), user.is_superuser)
 
 
 def has_role(db: Session, user: User, *names: str, match: Match = "any") -> bool:
     """Vérifier un des rôles demandés, ou tous avec match=all."""
-    return _matches(get_access(db, user).roles, _names(names), match)
+    names = _names(names)
+    access = get_access(db, user)
+    matched = _matches(access.roles, names, match)
+    return access.is_superuser or matched
 
 
 def has_permission(db: Session, user: User, *names: str, match: Match = "all") -> bool:
     """Vérifier toutes les permissions demandées, ou une seule avec match=any."""
-    return _matches(get_access(db, user).permissions, _names(names), match)
+    names = _names(names)
+    access = get_access(db, user)
+    matched = _matches(access.permissions, names, match)
+    return access.is_superuser or matched
 
 
 def current_user(payload: Payload, db: DatabaseSession) -> User:
@@ -113,6 +128,8 @@ def require_access(
     def dependency(user: CurrentUser, db: DatabaseSession) -> User:
         """Contrôler les droits avant le corps de route ; refuser avec HTTP 403."""
         access = get_access(db, user)
+        if access.is_superuser:
+            return user
         checks = []
         if roles:
             checks.append(_matches(access.roles, roles, role_match))

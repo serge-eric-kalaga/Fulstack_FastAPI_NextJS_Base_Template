@@ -5,6 +5,122 @@ export type ClientOptions = {
 };
 
 /**
+ * AccessItem
+ *
+ * Identifiant et nom d’un rôle ou d’une permission.
+ */
+export type AccessItem = {
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Id
+     *
+     * Identifiant SQL du rôle ou de la permission
+     */
+    id: number;
+    /**
+     * Is Active
+     */
+    is_active?: boolean;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * AccessName
+ *
+ * Code stable utilisé dans les dépendances, par exemple editor ou reports.read.
+ */
+export type AccessName = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * AccessUpdate
+ *
+ * Métadonnées modifiables ; le code reste stable pour les dépendances métier.
+ */
+export type AccessUpdate = {
+    /**
+     * Description
+     *
+     * Description du droit ou du rôle
+     */
+    description: string;
+    /**
+     * Is Active
+     *
+     * Désactiver suspend les droits sans effacer les attributions
+     */
+    is_active: boolean;
+};
+
+/**
+ * AdminCreateUser
+ *
+ * Créer un compte normal, sans accepter de rôle ou statut privilégié dans le corps.
+ */
+export type AdminCreateUser = {
+    /**
+     * Email
+     *
+     * Adresse privée de récupération, obligatoire si EMAIL_VERIFICATION_ENABLED est activée.
+     */
+    email?: string | null;
+    /**
+     * Language
+     *
+     * Langue du lien de confirmation : fr ou en.
+     */
+    language?: string;
+    /**
+     * Password
+     *
+     * Mot de passe à définir pour le compte. Il est haché par le backend avant son enregistrement. Ce champ doit être présent dans la requête.
+     */
+    password: string;
+    /**
+     * Telephone
+     *
+     * Numéro de téléphone facultatif.
+     */
+    telephone?: string | null;
+    /**
+     * Username
+     *
+     * Nom d’utilisateur unique à créer.
+     */
+    username: string;
+};
+
+/**
+ * AdminUser
+ *
+ * Projection limitée du compte pour les listes d’administration.
+ */
+export type AdminUser = {
+    /**
+     * Email
+     */
+    email: string | null;
+    /**
+     * Is Superuser
+     */
+    is_superuser: boolean;
+    /**
+     * Username
+     */
+    username: string;
+};
+
+/**
  * AuthConfiguration
  *
  * Options publiques que le frontend utilise pour adapter l’inscription.
@@ -269,6 +385,58 @@ export type OwnProfileUpdate = {
 };
 
 /**
+ * Page[AccessItem]
+ */
+export type PageAccessItem = {
+    /**
+     * Items
+     */
+    items: Array<AccessItem>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Pages
+     */
+    pages: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * Page[AdminUser]
+ */
+export type PageAdminUser = {
+    /**
+     * Items
+     */
+    items: Array<AdminUser>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Pages
+     */
+    pages: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
  * Page[UserModel]
  */
 export type PageUserModel = {
@@ -389,6 +557,44 @@ export type Response = {
 };
 
 /**
+ * Response[AccessItem]
+ */
+export type ResponseAccessItem = {
+    data?: AccessItem | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[AdminUser]
+ */
+export type ResponseAdminUser = {
+    data?: AdminUser | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
  * Response[AuthConfiguration]
  */
 export type ResponseAuthConfiguration = {
@@ -427,6 +633,66 @@ export type ResponseCurrentUserModel = {
 };
 
 /**
+ * Response[NoneType]
+ */
+export type ResponseNoneType = {
+    /**
+     * Data
+     */
+    data?: null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[Page[AccessItem]]
+ */
+export type ResponsePageAccessItem = {
+    data?: PageAccessItem | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[Page[AdminUser]]
+ */
+export type ResponsePageAdminUser = {
+    data?: PageAdminUser | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
  * Response[Page[UserModel]]
  */
 export type ResponsePageUserModel = {
@@ -450,6 +716,44 @@ export type ResponsePageUserModel = {
  */
 export type ResponseRegistrationModel = {
     data?: RegistrationModel | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[RoleDetail]
+ */
+export type ResponseRoleDetail = {
+    data?: RoleDetail | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[UserAccess]
+ */
+export type ResponseUserAccess = {
+    data?: UserAccess | null;
     /**
      * Message
      */
@@ -528,6 +832,38 @@ export type ResponseStr = {
 };
 
 /**
+ * RoleDetail
+ *
+ * Permissions explicitement associées au rôle.
+ */
+export type RoleDetail = {
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Id
+     *
+     * Identifiant SQL du rôle ou de la permission
+     */
+    id: number;
+    /**
+     * Is Active
+     */
+    is_active?: boolean;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Permissions
+     *
+     * Permissions accordées au rôle
+     */
+    permissions: Array<AccessItem>;
+};
+
+/**
  * UpdateUserModel
  *
  * Champs à modifier ; les champs omis ou à null sont ignorés.
@@ -545,6 +881,44 @@ export type UpdateUserModel = {
      * Nouveau nom d’utilisateur. Omettre ce champ ou envoyer null pour conserver la valeur actuelle.
      */
     username?: string | null;
+};
+
+/**
+ * UserAccess
+ *
+ * Droits SQL de l’utilisateur, en distinguant droits directs et effectifs.
+ */
+export type UserAccess = {
+    /**
+     * Direct Permissions
+     *
+     * Permissions accordées directement au compte
+     */
+    direct_permissions: Array<string>;
+    /**
+     * Is Superuser
+     *
+     * Statut super administrateur attribué uniquement côté serveur
+     */
+    is_superuser?: boolean;
+    /**
+     * Permissions
+     *
+     * Union des permissions directes et héritées des rôles
+     */
+    permissions: Array<string>;
+    /**
+     * Roles
+     *
+     * Rôles directement attribués au compte
+     */
+    roles: Array<string>;
+    /**
+     * Username
+     *
+     * Nom du compte concerné
+     */
+    username: string;
 };
 
 /**
@@ -822,6 +1196,728 @@ export type UserModelWritable = {
      */
     username: string;
 };
+
+export type GetMyAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/access/me';
+};
+
+export type GetMyAccessErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+};
+
+export type GetMyAccessResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseUserAccess;
+};
+
+export type GetMyAccessResponse = GetMyAccessResponses[keyof GetMyAccessResponses];
+
+export type ListPermissionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page
+         *
+         * Page demandée, à partir de 1
+         */
+        page?: number;
+        /**
+         * Page Size
+         *
+         * Éléments par page, maximum 100
+         */
+        page_size?: number;
+        /**
+         * Q
+         *
+         * Recherche textuelle littérale
+         */
+        q?: string;
+        /**
+         * Sort
+         *
+         * Nom d’un champ de tri autorisé
+         */
+        sort?: string;
+        /**
+         * Order
+         *
+         * Sens du tri
+         */
+        order?: 'asc' | 'desc';
+    };
+    url: '/api/access/permissions';
+};
+
+export type ListPermissionsErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPermissionsError = ListPermissionsErrors[keyof ListPermissionsErrors];
+
+export type ListPermissionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponsePageAccessItem;
+};
+
+export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
+
+export type CreatePermissionData = {
+    body: AccessName;
+    path?: never;
+    query?: never;
+    url: '/api/access/permissions';
+};
+
+export type CreatePermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePermissionError = CreatePermissionErrors[keyof CreatePermissionErrors];
+
+export type CreatePermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseAccessItem;
+};
+
+export type CreatePermissionResponse = CreatePermissionResponses[keyof CreatePermissionResponses];
+
+export type UpdatePermissionData = {
+    body: AccessUpdate;
+    path: {
+        /**
+         * Permission Id
+         */
+        permission_id: number;
+    };
+    query?: never;
+    url: '/api/access/permissions/{permission_id}';
+};
+
+export type UpdatePermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdatePermissionError = UpdatePermissionErrors[keyof UpdatePermissionErrors];
+
+export type UpdatePermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseAccessItem;
+};
+
+export type UpdatePermissionResponse = UpdatePermissionResponses[keyof UpdatePermissionResponses];
+
+export type ListRolesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page
+         *
+         * Page demandée, à partir de 1
+         */
+        page?: number;
+        /**
+         * Page Size
+         *
+         * Éléments par page, maximum 100
+         */
+        page_size?: number;
+        /**
+         * Q
+         *
+         * Recherche textuelle littérale
+         */
+        q?: string;
+        /**
+         * Sort
+         *
+         * Nom d’un champ de tri autorisé
+         */
+        sort?: string;
+        /**
+         * Order
+         *
+         * Sens du tri
+         */
+        order?: 'asc' | 'desc';
+    };
+    url: '/api/access/roles';
+};
+
+export type ListRolesErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
+
+export type ListRolesResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponsePageAccessItem;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+    body: AccessName;
+    path?: never;
+    query?: never;
+    url: '/api/access/roles';
+};
+
+export type CreateRoleErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseAccessItem;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type GetRoleData = {
+    body?: never;
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/access/roles/{role_id}';
+};
+
+export type GetRoleErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRoleError = GetRoleErrors[keyof GetRoleErrors];
+
+export type GetRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseRoleDetail;
+};
+
+export type GetRoleResponse = GetRoleResponses[keyof GetRoleResponses];
+
+export type UpdateRoleData = {
+    body: AccessUpdate;
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/access/roles/{role_id}';
+};
+
+export type UpdateRoleErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseAccessItem;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
+
+export type RevokeRolePermissionData = {
+    body?: never;
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+        /**
+         * Permission Id
+         */
+        permission_id: number;
+    };
+    query?: never;
+    url: '/api/access/roles/{role_id}/permissions/{permission_id}';
+};
+
+export type RevokeRolePermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeRolePermissionError = RevokeRolePermissionErrors[keyof RevokeRolePermissionErrors];
+
+export type RevokeRolePermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type RevokeRolePermissionResponse = RevokeRolePermissionResponses[keyof RevokeRolePermissionResponses];
+
+export type GrantRolePermissionData = {
+    body?: never;
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+        /**
+         * Permission Id
+         */
+        permission_id: number;
+    };
+    query?: never;
+    url: '/api/access/roles/{role_id}/permissions/{permission_id}';
+};
+
+export type GrantRolePermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GrantRolePermissionError = GrantRolePermissionErrors[keyof GrantRolePermissionErrors];
+
+export type GrantRolePermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type GrantRolePermissionResponse = GrantRolePermissionResponses[keyof GrantRolePermissionResponses];
+
+export type ListAdminUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page
+         *
+         * Page demandée, à partir de 1
+         */
+        page?: number;
+        /**
+         * Page Size
+         *
+         * Éléments par page, maximum 100
+         */
+        page_size?: number;
+        /**
+         * Q
+         *
+         * Recherche textuelle littérale
+         */
+        q?: string;
+        /**
+         * Sort
+         *
+         * Nom d’un champ de tri autorisé
+         */
+        sort?: string;
+        /**
+         * Order
+         *
+         * Sens du tri
+         */
+        order?: 'asc' | 'desc';
+    };
+    url: '/api/access/users';
+};
+
+export type ListAdminUsersErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAdminUsersError = ListAdminUsersErrors[keyof ListAdminUsersErrors];
+
+export type ListAdminUsersResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponsePageAdminUser;
+};
+
+export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
+
+export type AdminCreateUserData = {
+    body: AdminCreateUser;
+    path?: never;
+    query?: never;
+    url: '/api/access/users';
+};
+
+export type AdminCreateUserErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AdminCreateUserError = AdminCreateUserErrors[keyof AdminCreateUserErrors];
+
+export type AdminCreateUserResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseAdminUser;
+};
+
+export type AdminCreateUserResponse = AdminCreateUserResponses[keyof AdminCreateUserResponses];
+
+export type GetUserAccessData = {
+    body?: never;
+    path: {
+        /**
+         * Username
+         */
+        username: string;
+    };
+    query?: never;
+    url: '/api/access/users/{username}';
+};
+
+export type GetUserAccessErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetUserAccessError = GetUserAccessErrors[keyof GetUserAccessErrors];
+
+export type GetUserAccessResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseUserAccess;
+};
+
+export type GetUserAccessResponse = GetUserAccessResponses[keyof GetUserAccessResponses];
+
+export type RevokeUserPermissionData = {
+    body?: never;
+    path: {
+        /**
+         * Username
+         */
+        username: string;
+        /**
+         * Permission Id
+         */
+        permission_id: number;
+    };
+    query?: never;
+    url: '/api/access/users/{username}/permissions/{permission_id}';
+};
+
+export type RevokeUserPermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeUserPermissionError = RevokeUserPermissionErrors[keyof RevokeUserPermissionErrors];
+
+export type RevokeUserPermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type RevokeUserPermissionResponse = RevokeUserPermissionResponses[keyof RevokeUserPermissionResponses];
+
+export type GrantUserPermissionData = {
+    body?: never;
+    path: {
+        /**
+         * Username
+         */
+        username: string;
+        /**
+         * Permission Id
+         */
+        permission_id: number;
+    };
+    query?: never;
+    url: '/api/access/users/{username}/permissions/{permission_id}';
+};
+
+export type GrantUserPermissionErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GrantUserPermissionError = GrantUserPermissionErrors[keyof GrantUserPermissionErrors];
+
+export type GrantUserPermissionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type GrantUserPermissionResponse = GrantUserPermissionResponses[keyof GrantUserPermissionResponses];
+
+export type RevokeUserRoleData = {
+    body?: never;
+    path: {
+        /**
+         * Username
+         */
+        username: string;
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/access/users/{username}/roles/{role_id}';
+};
+
+export type RevokeUserRoleErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeUserRoleError = RevokeUserRoleErrors[keyof RevokeUserRoleErrors];
+
+export type RevokeUserRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type RevokeUserRoleResponse = RevokeUserRoleResponses[keyof RevokeUserRoleResponses];
+
+export type GrantUserRoleData = {
+    body?: never;
+    path: {
+        /**
+         * Username
+         */
+        username: string;
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/access/users/{username}/roles/{role_id}';
+};
+
+export type GrantUserRoleErrors = {
+    /**
+     * Authentification requise
+     */
+    401: unknown;
+    /**
+     * Permission access.read ou access.manage requise
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GrantUserRoleError = GrantUserRoleErrors[keyof GrantUserRoleErrors];
+
+export type GrantUserRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseNoneType;
+};
+
+export type GrantUserRoleResponse = GrantUserRoleResponses[keyof GrantUserRoleResponses];
 
 export type AuthConfigData = {
     body?: never;

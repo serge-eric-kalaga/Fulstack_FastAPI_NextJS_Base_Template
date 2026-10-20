@@ -1,6 +1,183 @@
 {
   "components": {
     "schemas": {
+      "AccessItem": {
+        "additionalProperties": false,
+        "description": "Identifiant et nom d’un rôle ou d’une permission.",
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "description": "Identifiant SQL du rôle ou de la permission",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "examples": [
+              "reports.read"
+            ],
+            "pattern": "^[a-z][a-z0-9_.:-]{0,99}$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "AccessItem",
+        "type": "object"
+      },
+      "AccessName": {
+        "additionalProperties": false,
+        "description": "Code stable utilisé dans les dépendances, par exemple editor ou reports.read.",
+        "properties": {
+          "name": {
+            "examples": [
+              "reports.read"
+            ],
+            "pattern": "^[a-z][a-z0-9_.:-]{0,99}$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AccessName",
+        "type": "object"
+      },
+      "AccessUpdate": {
+        "additionalProperties": false,
+        "description": "Métadonnées modifiables ; le code reste stable pour les dépendances métier.",
+        "properties": {
+          "description": {
+            "description": "Description du droit ou du rôle",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "is_active": {
+            "description": "Désactiver suspend les droits sans effacer les attributions",
+            "title": "Is Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "description",
+          "is_active"
+        ],
+        "title": "AccessUpdate",
+        "type": "object"
+      },
+      "AdminCreateUser": {
+        "additionalProperties": false,
+        "description": "Créer un compte normal, sans accepter de rôle ou statut privilégié dans le corps.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Adresse privée de récupération, obligatoire si EMAIL_VERIFICATION_ENABLED est activée.",
+            "title": "Email"
+          },
+          "language": {
+            "default": "fr",
+            "description": "Langue du lien de confirmation : fr ou en.",
+            "pattern": "^(fr|en)$",
+            "title": "Language",
+            "type": "string"
+          },
+          "password": {
+            "description": "Mot de passe à définir pour le compte. Il est haché par le backend avant son enregistrement. Ce champ doit être présent dans la requête.",
+            "examples": [
+              "ExempleMotDePasse!2026"
+            ],
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "telephone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Numéro de téléphone facultatif.",
+            "examples": [
+              "+22670000000"
+            ],
+            "title": "Telephone"
+          },
+          "username": {
+            "description": "Nom d’utilisateur unique à créer.",
+            "examples": [
+              "utilisateur_demo"
+            ],
+            "maxLength": 64,
+            "minLength": 3,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "AdminCreateUser",
+        "type": "object"
+      },
+      "AdminUser": {
+        "description": "Projection limitée du compte pour les listes d’administration.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "is_superuser": {
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "is_superuser"
+        ],
+        "title": "AdminUser",
+        "type": "object"
+      },
       "AuthConfiguration": {
         "description": "Options publiques que le frontend utilise pour adapter l’inscription.",
         "properties": {
@@ -426,6 +603,78 @@
         "title": "OwnProfileUpdate",
         "type": "object"
       },
+      "Page_AccessItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccessItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "Page[AccessItem]",
+        "type": "object"
+      },
+      "Page_AdminUser_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUser"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "Page[AdminUser]",
+        "type": "object"
+      },
       "Page_UserModel_": {
         "properties": {
           "items": {
@@ -613,6 +862,82 @@
         "title": "Response",
         "type": "object"
       },
+      "Response_AccessItem_": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccessItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[AccessItem]",
+        "type": "object"
+      },
+      "Response_AdminUser_": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[AdminUser]",
+        "type": "object"
+      },
       "Response_AuthConfiguration_": {
         "properties": {
           "data": {
@@ -689,6 +1014,114 @@
         "title": "Response[CurrentUserModel]",
         "type": "object"
       },
+      "Response_NoneType_": {
+        "properties": {
+          "data": {
+            "title": "Data",
+            "type": "null"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[NoneType]",
+        "type": "object"
+      },
+      "Response_Page_AccessItem__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Page_AccessItem_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[Page[AccessItem]]",
+        "type": "object"
+      },
+      "Response_Page_AdminUser__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Page_AdminUser_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[Page[AdminUser]]",
+        "type": "object"
+      },
       "Response_Page_UserModel__": {
         "properties": {
           "data": {
@@ -763,6 +1196,82 @@
           }
         },
         "title": "Response[RegistrationModel]",
+        "type": "object"
+      },
+      "Response_RoleDetail_": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[RoleDetail]",
+        "type": "object"
+      },
+      "Response_UserAccess_": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserAccess"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[UserAccess]",
         "type": "object"
       },
       "Response_UserModel_": {
@@ -884,6 +1393,50 @@
         "title": "Response[str]",
         "type": "object"
       },
+      "RoleDetail": {
+        "additionalProperties": false,
+        "description": "Permissions explicitement associées au rôle.",
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "description": "Identifiant SQL du rôle ou de la permission",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "examples": [
+              "reports.read"
+            ],
+            "pattern": "^[a-z][a-z0-9_.:-]{0,99}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "description": "Permissions accordées au rôle",
+            "items": {
+              "$ref": "#/components/schemas/AccessItem"
+            },
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "permissions"
+        ],
+        "title": "RoleDetail",
+        "type": "object"
+      },
       "UpdateUserModel": {
         "additionalProperties": false,
         "description": "Champs à modifier ; les champs omis ou à null sont ignorés.",
@@ -920,6 +1473,54 @@
           }
         },
         "title": "UpdateUserModel",
+        "type": "object"
+      },
+      "UserAccess": {
+        "description": "Droits SQL de l’utilisateur, en distinguant droits directs et effectifs.",
+        "properties": {
+          "direct_permissions": {
+            "description": "Permissions accordées directement au compte",
+            "items": {
+              "type": "string"
+            },
+            "title": "Direct Permissions",
+            "type": "array"
+          },
+          "is_superuser": {
+            "default": false,
+            "description": "Statut super administrateur attribué uniquement côté serveur",
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "permissions": {
+            "description": "Union des permissions directes et héritées des rôles",
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "roles": {
+            "description": "Rôles directement attribués au compte",
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "username": {
+            "description": "Nom du compte concerné",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "roles",
+          "direct_permissions",
+          "permissions"
+        ],
+        "title": "UserAccess",
         "type": "object"
       },
       "UserModel": {
@@ -1031,6 +1632,1154 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/access/me": {
+      "get": {
+        "description": "Consulter uniquement ses propres droits, pour adapter l’interface.",
+        "operationId": "getMyAccess",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_UserAccess_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "My Access",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/permissions": {
+      "get": {
+        "description": "Lister les permissions ; permission access.read requise.",
+        "operationId": "listPermissions",
+        "parameters": [
+          {
+            "description": "Page demandée, à partir de 1",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page demandée, à partir de 1",
+              "maximum": 1000000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Éléments par page, maximum 100",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Éléments par page, maximum 100",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Recherche textuelle littérale",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Recherche textuelle littérale",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nom d’un champ de tri autorisé",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "id",
+              "description": "Nom d’un champ de tri autorisé",
+              "maxLength": 50,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sens du tri",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "description": "Sens du tri",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_Page_AccessItem__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Permissions",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "post": {
+        "description": "Créer une permission ou retourner celle du même nom ; access.manage requise.",
+        "operationId": "createPermission",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_AccessItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Add Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/permissions/{permission_id}": {
+      "patch": {
+        "description": "Modifier la description ou suspendre la permission ; conserver son code métier.",
+        "operationId": "updatePermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Permission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_AccessItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/roles": {
+      "get": {
+        "description": "Lister les rôles ; permission access.read requise.",
+        "operationId": "listRoles",
+        "parameters": [
+          {
+            "description": "Page demandée, à partir de 1",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page demandée, à partir de 1",
+              "maximum": 1000000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Éléments par page, maximum 100",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Éléments par page, maximum 100",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Recherche textuelle littérale",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Recherche textuelle littérale",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nom d’un champ de tri autorisé",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "id",
+              "description": "Nom d’un champ de tri autorisé",
+              "maxLength": 50,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sens du tri",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "description": "Sens du tri",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_Page_AccessItem__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Roles",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "post": {
+        "description": "Créer un rôle ou retourner celui du même nom ; access.manage requise.",
+        "operationId": "createRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_AccessItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Add Role",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/roles/{role_id}": {
+      "get": {
+        "description": "Consulter un rôle et ses permissions.",
+        "operationId": "getRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_RoleDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Role Detail",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "patch": {
+        "description": "Modifier les métadonnées du rôle ; sa désactivation suspend ses droits hérités.",
+        "operationId": "updateRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_AccessItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Role",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/roles/{role_id}/permissions/{permission_id}": {
+      "delete": {
+        "description": "Retirer une permission du rôle, donc de tous ses bénéficiaires indirects.",
+        "operationId": "revokeRolePermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Permission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Unassign Role Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "put": {
+        "description": "Accorder une permission existante à un rôle.",
+        "operationId": "grantRolePermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Permission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Assign Role Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/users": {
+      "get": {
+        "description": "Lister et rechercher les utilisateurs pour gérer leurs attributions.",
+        "operationId": "listAdminUsers",
+        "parameters": [
+          {
+            "description": "Page demandée, à partir de 1",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page demandée, à partir de 1",
+              "maximum": 1000000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Éléments par page, maximum 100",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Éléments par page, maximum 100",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Recherche textuelle littérale",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Recherche textuelle littérale",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nom d’un champ de tri autorisé",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "id",
+              "description": "Nom d’un champ de tri autorisé",
+              "maxLength": 50,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sens du tri",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "description": "Sens du tri",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_Page_AdminUser__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Users",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "post": {
+        "description": "Créer un compte normal en conservant la confirmation d’e-mail configurée.",
+        "operationId": "adminCreateUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateUser"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_AdminUser_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Admin User",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/users/{username}": {
+      "get": {
+        "description": "Consulter les rôles, permissions directes et permissions effectives d’un compte.",
+        "operationId": "getUserAccess",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_UserAccess_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "User Access",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/users/{username}/permissions/{permission_id}": {
+      "delete": {
+        "description": "Retirer le lien direct ; les permissions héritées restent effectives.",
+        "operationId": "revokeUserPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Permission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Unassign User Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "put": {
+        "description": "Accorder directement une permission à un compte.",
+        "operationId": "grantUserPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Permission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Assign User Permission",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
+    "/api/access/users/{username}/roles/{role_id}": {
+      "delete": {
+        "description": "Retirer le lien de rôle ; un lien déjà absent est accepté.",
+        "operationId": "revokeUserRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Unassign Role",
+        "tags": [
+          "ACCESS"
+        ]
+      },
+      "put": {
+        "description": "Attribuer un rôle existant ; un lien déjà présent est accepté.",
+        "operationId": "grantUserRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Role Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise"
+          },
+          "403": {
+            "description": "Permission access.read ou access.manage requise"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Assign Role",
+        "tags": [
+          "ACCESS"
+        ]
+      }
+    },
     "/api/auth/config": {
       "get": {
         "description": "Exposer uniquement le drapeau public ; aucune configuration SMTP ni secret.",

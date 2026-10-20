@@ -13,7 +13,8 @@
     "test:passwords": "node tests/password-api.mjs",
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check",
-    "test:generated-api": "node tests/generated-api.mjs"
+    "test:generated-api": "node tests/generated-api.mjs",
+    "test:admin-cache": "node --test tests/admin-cache.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
