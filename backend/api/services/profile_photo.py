@@ -11,6 +11,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from api.database import User
+from api.services.storage import profile_storage
+from botocore.exceptions import BotoCoreError, ClientError
 
 logger = logging.getLogger(__name__)
 _ALLOWED_TYPES = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}
@@ -54,35 +56,36 @@ def _normalize(upload: UploadFile, config) -> bytes:
         raise HTTPException(status_code=400, detail="Fichier image invalide ou illisible") from None
 
 
-def _remove(directory: Path, filename: str | None):
+def _remove(config, filename: str | None):
     """Supprimer une ancienne photo sans annuler une écriture SQL déjà validée."""
     if filename:
         try:
-            photo_path(directory, filename).unlink(missing_ok=True)
-        except (OSError, HTTPException):
+            photo_path(config.PROFILE_PHOTO_DIR, filename)
+            profile_storage(config).delete(filename)
+        except (OSError, HTTPException, BotoCoreError, ClientError, ValueError):
             logger.warning("Impossible de supprimer une ancienne photo de profil")
 
 
-def update_profile_photo(db: Session, username: str, upload: UploadFile, config) -> User:
+def update_profile_photo(
+    db: Session, username: str, upload: UploadFile, config
+) -> User:
     """Remplacer la photo du compte connecté et conserver l’ancienne en cas d’échec SQL."""
     content = _normalize(upload, config)
     user = db.query(User).filter_by(username=username).with_for_update().first()
     if user is None:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-    directory = config.PROFILE_PHOTO_DIR
-    directory.mkdir(parents=True, exist_ok=True)
+    storage = profile_storage(config)
     filename = f"{uuid4().hex}.webp"
-    target = photo_path(directory, filename)
     previous = user.profile_photo
     try:
-        target.write_bytes(content)
+        storage.put(filename, content, "image/webp")
         user.profile_photo = filename
         db.commit()
     except Exception:
         db.rollback()
-        target.unlink(missing_ok=True)
+        _remove(config, filename)
         raise
-    _remove(directory, previous)
+    _remove(config, previous)
     db.refresh(user)
     return user
 
@@ -93,11 +96,12 @@ def read_profile_photo(db: Session, username: str, config) -> bytes:
     if not user.profile_photo:
         raise HTTPException(status_code=404, detail="Aucune photo de profil")
     try:
-        return photo_path(config.PROFILE_PHOTO_DIR, user.profile_photo).read_bytes()
+        photo_path(config.PROFILE_PHOTO_DIR, user.profile_photo)
+        return profile_storage(config).read(user.profile_photo)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Photo introuvable") from None
 
 
 def remove_profile_photo_file(user: User, config):
     """Nettoyer la photo d’un compte après la suppression de sa ligne en base."""
-    _remove(config.PROFILE_PHOTO_DIR, user.profile_photo)
+    _remove(config, user.profile_photo)

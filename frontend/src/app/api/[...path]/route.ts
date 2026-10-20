@@ -1,3 +1,4 @@
+import { listQuerySchema } from "@/lib/api/pagination";
 import { NextRequest, NextResponse } from "next/server";
 import {
   loginSchema,
@@ -33,6 +34,7 @@ import {
   authResendVerification,
   authVerifyEmail,
   getCurrentUser,
+  listUsersPage,
   updateCurrentUser,
   changePassword,
   changeEmail,
@@ -222,6 +224,22 @@ async function handle(request: NextRequest, context: Context) {
       const response = jsonData(null);
       setSession(response, "", 0);
       return response;
+    }
+    if (path === "users" && method === "GET") {
+      const token = requireSession(request);
+      const params = listQuerySchema.safeParse(
+        Object.fromEntries(request.nextUrl.searchParams),
+      );
+      if (!params.success)
+        throw new BackendError(422, "Paramètres de liste invalides.");
+      return jsonData(
+        backendRequired(
+          await listUsersPage({
+            client: createBackendClient(token),
+            query: params.data,
+          }),
+        ),
+      );
     }
     if (path === "session" && method === "GET") {
       const token = request.cookies.get(SESSION_COOKIE)?.value;

@@ -269,6 +269,32 @@ export type OwnProfileUpdate = {
 };
 
 /**
+ * Page[UserModel]
+ */
+export type PageUserModel = {
+    /**
+     * Items
+     */
+    items: Array<UserModel>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Pages
+     */
+    pages: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
  * RegistrationModel
  *
  * Résultat d’inscription ; un compte en attente ne reçoit aucun JWT.
@@ -386,6 +412,25 @@ export type ResponseAuthConfiguration = {
  */
 export type ResponseCurrentUserModel = {
     data?: CurrentUserModel | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[Page[UserModel]]
+ */
+export type ResponsePageUserModel = {
+    data?: PageUserModel | null;
     /**
      * Message
      */
@@ -609,6 +654,32 @@ export type CurrentUserModelWritable = {
 };
 
 /**
+ * Page[UserModel]
+ */
+export type PageUserModelWritable = {
+    /**
+     * Items
+     */
+    items: Array<UserModelWritable>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Pages
+     */
+    pages: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
  * RegistrationModel
  *
  * Résultat d’inscription ; un compte en attente ne reçoit aucun JWT.
@@ -639,6 +710,25 @@ export type RegistrationModelWritable = {
  */
 export type ResponseCurrentUserModelWritable = {
     data?: CurrentUserModelWritable | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Status
+     */
+    status?: number;
+    /**
+     * Status Code
+     */
+    status_code?: number;
+};
+
+/**
+ * Response[Page[UserModel]]
+ */
+export type ResponsePageUserModelWritable = {
+    data?: PageUserModelWritable | null;
     /**
      * Message
      */
@@ -1062,6 +1152,62 @@ export type UploadProfilePhotoResponses = {
 };
 
 export type UploadProfilePhotoResponse = UploadProfilePhotoResponses[keyof UploadProfilePhotoResponses];
+
+export type ListUsersPageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page
+         *
+         * Page demandée, à partir de 1
+         */
+        page?: number;
+        /**
+         * Page Size
+         *
+         * Éléments par page, maximum 100
+         */
+        page_size?: number;
+        /**
+         * Q
+         *
+         * Recherche textuelle littérale
+         */
+        q?: string;
+        /**
+         * Sort
+         *
+         * Nom d’un champ de tri autorisé
+         */
+        sort?: string;
+        /**
+         * Order
+         *
+         * Sens du tri
+         */
+        order?: 'asc' | 'desc';
+    };
+    url: '/api/user/page';
+};
+
+export type ListUsersPageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListUsersPageError = ListUsersPageErrors[keyof ListUsersPageErrors];
+
+export type ListUsersPageResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponsePageUserModel;
+};
+
+export type ListUsersPageResponse = ListUsersPageResponses[keyof ListUsersPageResponses];
 
 export type DeleteUserApiUserUsernameDeleteData = {
     body?: never;

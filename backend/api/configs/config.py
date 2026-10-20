@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, Literal
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
@@ -19,6 +19,13 @@ class SETTINGS(BaseSettings):
     REDIS_PREFIX: str = "fullstack:dev:v1"
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = Field(default=60, gt=0)
+    STORAGE_BACKEND: Literal["local", "s3"] = "local"
+    S3_BUCKET: str = ""
+    S3_ENDPOINT_URL: str = ""
+    S3_REGION: str = "us-east-1"
+    S3_ACCESS_KEY_ID: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
+    S3_ADDRESSING_STYLE: Literal["auto", "path", "virtual"] = "auto"
     PROFILE_PHOTO_DIR: Path = Path("static/uploads/profile_photos")
     PROFILE_PHOTO_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
     PROFILE_PHOTO_MAX_PIXELS: int = Field(default=16_000_000, gt=0)

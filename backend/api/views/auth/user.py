@@ -1,4 +1,6 @@
 from typing import Annotated
+from fastapi import Query
+from api.services.pagination import ListParams, Page, paginate
 from sqlalchemy.orm import Session
 from api.schemas.user import (
     UserModel,
@@ -202,6 +204,27 @@ def get_all_user(db: DatabaseSession):
 
     users = User.getAll(db=db)
     return Response(data=users)
+
+
+@user_router.get(
+    "/page",
+    operation_id="listUsersPage",
+    response_model=Response[Page[UserModel]],
+    summary="Lister les utilisateurs avec pagination, recherche et tri",
+    description="Recherche sur username et telephone. Tri autorisé : id ou username. Authentification requise.",
+    dependencies=[Depends(cached_response("users"))],
+)
+def list_users_page(db: DatabaseSession, params: Annotated[ListParams, Query()]):
+    """Illustrer les conventions de listes sans modifier l’ancienne route de liste."""
+    return Response(
+        data=paginate(
+            db.query(User),
+            params,
+            sort_columns={"id": User.id, "username": User.username},
+            search_columns=(User.username, User.telephone),
+            tie_breaker=User.id,
+        )
+    )
 
 
 @user_router.get(

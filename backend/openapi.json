@@ -426,6 +426,42 @@
         "title": "OwnProfileUpdate",
         "type": "object"
       },
+      "Page_UserModel_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserModel"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "pages": {
+            "title": "Pages",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "Page[UserModel]",
+        "type": "object"
+      },
       "RegistrationModel": {
         "description": "Résultat d’inscription ; un compte en attente ne reçoit aucun JWT.",
         "properties": {
@@ -651,6 +687,44 @@
           }
         },
         "title": "Response[CurrentUserModel]",
+        "type": "object"
+      },
+      "Response_Page_UserModel__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Page_UserModel_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ok",
+            "title": "Message"
+          },
+          "status": {
+            "default": 1,
+            "title": "Status",
+            "type": "integer"
+          },
+          "status_code": {
+            "default": 200,
+            "title": "Status Code",
+            "type": "integer"
+          }
+        },
+        "title": "Response[Page[UserModel]]",
         "type": "object"
       },
       "Response_RegistrationModel_": {
@@ -1500,6 +1574,115 @@
           }
         ],
         "summary": "Ajouter ou remplacer sa photo de profil",
+        "tags": [
+          "USER"
+        ]
+      }
+    },
+    "/api/user/page": {
+      "get": {
+        "description": "Recherche sur username et telephone. Tri autorisé : id ou username. Authentification requise.",
+        "operationId": "listUsersPage",
+        "parameters": [
+          {
+            "description": "Page demandée, à partir de 1",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page demandée, à partir de 1",
+              "maximum": 1000000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Éléments par page, maximum 100",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Éléments par page, maximum 100",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Recherche textuelle littérale",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Recherche textuelle littérale",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Nom d’un champ de tri autorisé",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "id",
+              "description": "Nom d’un champ de tri autorisé",
+              "maxLength": 50,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sens du tri",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "description": "Sens du tri",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_Page_UserModel__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Lister les utilisateurs avec pagination, recherche et tri",
         "tags": [
           "USER"
         ]

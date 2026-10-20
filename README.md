@@ -671,6 +671,76 @@ python3 scripts/check_monitoring.py --env-file .env.grafana
 
 Le contrôle attend les cibles, les métriques applicatives, les quatre dashboards, les logs et le signal Watchdog dans Alertmanager. Utiliser `--grafana`, `--prometheus` et `--alertmanager` pour des ports différents. Les tests des seuils et délais des alertes sont exécutables avec `promtool test rules monitoring/prometheus/tests/rules.yml` ; la CI vérifie aussi la stack de production.
 
+## Stockage des fichiers
+
+Le stockage reste local par défaut (`STORAGE_BACKEND=local`), dans
+`PROFILE_PHOTO_DIR`. Pour un bucket privé S3 ou compatible, renseigner les
+variables suivantes dans `.env.dev` ou `.env.prod`, puis recréer backend et worker :
+
+```dotenv
+STORAGE_BACKEND=s3
+S3_BUCKET=mon-bucket
+S3_ENDPOINT_URL=https://s3.example.com
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=<identifiant>
+S3_SECRET_ACCESS_KEY=<secret>
+S3_ADDRESSING_STYLE=auto
+```
+
+Pour AWS S3, laisser `S3_ENDPOINT_URL` vide ; les identifiants peuvent aussi venir
+du rôle IAM du serveur. Certains fournisseurs compatibles demandent
+`S3_ADDRESSING_STYLE=path`. Le bucket doit déjà exister et autoriser uniquement les
+opérations nécessaires (`GetObject`, `PutObject`, `DeleteObject`). Aucune ACL
+publique n’est ajoutée : les photos passent toujours par la route authentifiée et
+le proxy Next.js. La validation, le réencodage et le remplacement transactionnel
+des photos restent identiques. Aucun service S3 local supplémentaire n’est installé.
+
+`api/services/storage.py` expose les opérations `put`, `read`, `delete` des deux
+stockages. Les noms SQL existants sont conservés comme clés S3. Changer de backend
+ne déplace pas les anciennes photos : copier auparavant les fichiers existants à
+la racine du bucket avec les mêmes noms, puis basculer la configuration. Conserver
+les sauvegardes jusqu’à vérification. Les variables sont également présentes dans
+les exemples et générées par les initialiseurs, avec le stockage local par défaut.
+
+## Pagination, recherche et tri
+
+Le contrat commun accepte `page` (défaut 1), `page_size` (défaut 20, maximum 100),
+`q` (100 caractères maximum), `sort` (défaut `id`) et `order` (`asc` ou `desc`).
+La réponse habituelle contient dans `data` :
+
+```json
+{"items": [], "total": 0, "page": 1, "page_size": 20, "pages": 0}
+```
+
+La route authentifiée `GET /api/user/page?q=demo&sort=username&order=asc` illustre
+le contrat, sans modifier l’ancienne liste. Elle cherche dans `username` et
+`telephone`, et autorise le tri par `id` ou `username`. Swagger décrit les
+paramètres et le client TypeScript généré expose `listUsersPage`.
+
+Pour une nouvelle ressource backend, réutiliser `ListParams`, `Page[VotreSchema]`
+et `paginate` depuis `api.services.pagination`. Fournir les colonnes de recherche,
+une liste explicite de colonnes de tri, et une colonne unique de départage.
+Appliquer d’abord les restrictions de propriétaire/permissions au query SQL.
+La recherche est littérale (`%` et `_` ne sont pas des jokers) ; un tri inconnu
+retourne HTTP 422. Une page hors plage retourne une liste vide et conserve le total.
+
+Côté frontend, `lib/api/pagination.ts` fournit les mêmes paramètres et des options
+TanStack Query. Exemple dans un composant client :
+
+```tsx
+const query = useQuery(paginatedQuery<UserModel>(["users", currentUser.username], "/users", params));
+// Lors d’un changement de recherche, de taille ou de tri :
+setParams(previous => updateListQuery(previous, { q: search }));
+```
+
+Importer `useQuery` depuis `@tanstack/react-query`, `UserModel` depuis le client
+généré, et `paginatedQuery`, `updateListQuery` depuis `@/lib/api/pagination`.
+Les critères font partie de la clé de cache ; les requêtes sont annulables et la
+page précédente reste affichée pendant le chargement. `updateListQuery` revient à
+la page 1 quand les critères changent. Le proxy autorise explicitement `/api/users`
+et utilise le SDK côté serveur, sans exposer le JWT au navigateur. Pour d’autres
+ressources, ajouter leur route autorisée au proxy puis régénérer le client.
+
 ## Tâches en arrière-plan
 
 Le module `backend/api/services/background.py` fournit Celery et les utilitaires

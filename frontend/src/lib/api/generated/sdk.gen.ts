@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthConfigData, AuthConfigResponses, AuthForgotPasswordData, AuthForgotPasswordErrors, AuthForgotPasswordResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AuthResendVerificationData, AuthResendVerificationErrors, AuthResendVerificationResponses, AuthResetPasswordData, AuthResetPasswordErrors, AuthResetPasswordResponses, AuthVerifyEmailData, AuthVerifyEmailErrors, AuthVerifyEmailResponses, ChangeEmailData, ChangeEmailErrors, ChangeEmailResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, DeleteUserApiUserUsernameDeleteData, DeleteUserApiUserUsernameDeleteErrors, DeleteUserApiUserUsernameDeleteResponses, GetAllUserApiUserGetData, GetAllUserApiUserGetResponses, GetCurrentUserData, GetCurrentUserResponses, GetProfilePhotoData, GetProfilePhotoErrors, GetProfilePhotoResponses, GetUserDetailsApiUserUsernameGetData, GetUserDetailsApiUserUsernameGetErrors, GetUserDetailsApiUserUsernameGetResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, UpdateCurrentUserData, UpdateCurrentUserErrors, UpdateCurrentUserResponses, UpdateUserApiUserUsernamePutData, UpdateUserApiUserUsernamePutErrors, UpdateUserApiUserUsernamePutResponses, UploadProfilePhotoData, UploadProfilePhotoErrors, UploadProfilePhotoResponses, VerifyHealthApiHealthcheckGetData, VerifyHealthApiHealthcheckGetResponses } from './types.gen';
+import type { AuthConfigData, AuthConfigResponses, AuthForgotPasswordData, AuthForgotPasswordErrors, AuthForgotPasswordResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AuthResendVerificationData, AuthResendVerificationErrors, AuthResendVerificationResponses, AuthResetPasswordData, AuthResetPasswordErrors, AuthResetPasswordResponses, AuthVerifyEmailData, AuthVerifyEmailErrors, AuthVerifyEmailResponses, ChangeEmailData, ChangeEmailErrors, ChangeEmailResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, DeleteUserApiUserUsernameDeleteData, DeleteUserApiUserUsernameDeleteErrors, DeleteUserApiUserUsernameDeleteResponses, GetAllUserApiUserGetData, GetAllUserApiUserGetResponses, GetCurrentUserData, GetCurrentUserResponses, GetProfilePhotoData, GetProfilePhotoErrors, GetProfilePhotoResponses, GetUserDetailsApiUserUsernameGetData, GetUserDetailsApiUserUsernameGetErrors, GetUserDetailsApiUserUsernameGetResponses, ListUsersPageData, ListUsersPageErrors, ListUsersPageResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, UpdateCurrentUserData, UpdateCurrentUserErrors, UpdateCurrentUserResponses, UpdateUserApiUserUsernamePutData, UpdateUserApiUserUsernamePutErrors, UpdateUserApiUserUsernamePutResponses, UploadProfilePhotoData, UploadProfilePhotoErrors, UploadProfilePhotoResponses, VerifyHealthApiHealthcheckGetData, VerifyHealthApiHealthcheckGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -197,6 +197,17 @@ export const uploadProfilePhoto = <ThrowOnError extends boolean = false>(options
         'Content-Type': null,
         ...options.headers
     }
+});
+
+/**
+ * Lister les utilisateurs avec pagination, recherche et tri
+ *
+ * Recherche sur username et telephone. Tri autorisé : id ou username. Authentification requise.
+ */
+export const listUsersPage = <ThrowOnError extends boolean = false>(options?: Options<ListUsersPageData, ThrowOnError>): RequestResult<ListUsersPageResponses, ListUsersPageErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersPageResponses, ListUsersPageErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/user/page',
+    ...options
 });
 
 /**
