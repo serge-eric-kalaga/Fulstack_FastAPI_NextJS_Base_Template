@@ -25,7 +25,6 @@ services:
     restart: always
     volumes:
       - ./backend/:/app/
-      - backend_uploads:/app/static/uploads
     expose:
       - 80
     ports:
@@ -81,7 +80,6 @@ services:
       INITIALISE_DATABASE: "false"
     volumes:
       - ./backend:/app
-      - backend_uploads:/app/static/uploads
     networks: [asgard, loky]
     depends_on:
       task-broker:
@@ -159,7 +157,6 @@ networks:
 
 volumes:
   task_broker_data:
-  backend_uploads:
   mysql_data:
   frontend_node_modules:
   frontend_next:

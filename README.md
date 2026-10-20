@@ -410,7 +410,7 @@ Les schémas, paramètres et réponses détaillés sont disponibles dans [Swagge
 
 Les photos acceptées sont JPEG, PNG et WebP fixes. Le backend vérifie le contenu, la taille et les dimensions, puis réencode l’image en WebP sans métadonnées, au maximum 1024 × 1024 pixels. Le champ multipart attendu est `photo`.
 
-Le volume `backend_uploads` conserve les fichiers de `static/uploads/`. Les photos sont servies par une route authentifiée, sans cache HTTP. Sauvegarder ce volume avec la base SQL ; utiliser un stockage partagé pour plusieurs instances sur des machines distinctes.
+En développement, le backend et le worker partagent le dossier local `backend/static/uploads/` grâce au montage de `backend/` : les fichiers téléversés sont visibles sur l’ordinateur et ignorés par Git. En production, le volume persistant `backend_uploads` conserve ces fichiers. Les photos sont servies par une route authentifiée, sans cache HTTP. Sauvegarder les fichiers avec la base SQL ; utiliser un stockage partagé pour plusieurs instances sur des machines distinctes.
 
 ## Client API TypeScript généré
 
